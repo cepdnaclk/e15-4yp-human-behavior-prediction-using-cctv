@@ -1,7 +1,7 @@
 import cv2 as cv
 import glob
 
-images = glob.glob("*.jpg")
+images = glob.glob("../Images/*.jpg")
 
 for imageName in images:
     image = cv.imread(imageName, 0)

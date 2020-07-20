@@ -1,7 +1,7 @@
 import cv2 as cv
 import glob
 
-image = cv.imread('profile.jpg', 0)
+image = cv.imread('../Images/profile.jpg', 0)
 
 #print(type(image))
 #print(image)
