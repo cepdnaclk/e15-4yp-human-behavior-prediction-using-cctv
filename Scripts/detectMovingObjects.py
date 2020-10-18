@@ -2,7 +2,7 @@ import cv2 as cv
 import pandas as pd
 from datetime import datetime
 
-frameRate = 24  # fps
+frameRate = 20  # fps
 firstFrame = None
 video = cv.VideoCapture(0)
 faceCascade = cv.CascadeClassifier("haarcascade_frontalface_default.xml")
@@ -37,6 +37,7 @@ while True:
     elif preStatus == 1 and currStatus == 0:
         df = df.append({"Start": startTime, "End": datetime.now()}, ignore_index=True)
 
+    cv.putText(currFrame, str(datetime.now()), (10, 470), cv.FONT_HERSHEY_PLAIN, 1.5, (255,255,255), 2)
     cv.imshow("Current_Frame", currFrame)
     cv.imshow("Edit_Frame", editFrame)
     key = cv.waitKey(int(1000/frameRate))
