@@ -6,6 +6,7 @@ greyImage = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
 
 faces = faceCascade.detectMultiScale(greyImage,scaleFactor=1.1,minNeighbors= 5)
 
+
 for x,y,w,h, in faces:
     image = cv.rectangle(image, (x, y), (x+w, y+h), (255, 0, 0), 3)
 
