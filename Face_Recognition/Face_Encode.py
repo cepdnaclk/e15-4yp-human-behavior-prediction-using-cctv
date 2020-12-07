@@ -2,6 +2,7 @@ import os
 import cv2 as cv
 import pickle
 import face_recognition as face
+import time
 
 ################################################################################################
 def encode(path):
@@ -28,4 +29,7 @@ def encode(path):
 ################################################################################################
 
 path = '../Assets/FaceImages'
+
+t = time.time()
 encode(path)
+print(f'Elapsed Time:{round(time.time()-t, 2)}s')

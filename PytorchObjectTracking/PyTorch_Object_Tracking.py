@@ -24,7 +24,7 @@ input_path  = '../Assets/Videos/common2.mp4'
 
 ################## DETECTION MODEL INITIALIZATION ##################
 
-# Define paths to the YOLOv3 trained model 
+# Define paths to the YOLOv3 trained model
 # (Check on YOLO theory what are image size, confidence 
 #  threshold and non-maximum suppression threshold)
 config_path = 'config/yolov3-tiny.cfg'
@@ -34,7 +34,7 @@ img_size = 416
 conf_thres = 0.6   # 0.8
 nms_thres = 0.4    # 0.4
 
-# Load YOLOv3 object detection model. the image will be resized to 
+# Load YOLOv3 object detection model. the image will be resized to
 # a 416px square while maintaining its aspect ratio and padding the overflow. 
 model = models.Darknet(config_path, img_size=img_size)
 model.load_weights(weights_path)

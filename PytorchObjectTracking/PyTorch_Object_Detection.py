@@ -42,7 +42,7 @@ model_info = [model, img_size, conf_thres, nms_thres, Tensor]
 # measure the time needed to complete the task
 
 print("[INFO]: Start Video Capture")
-video = cv2.VideoCapture(0)#'../Assets/Videos/walk9_slow.mp4')
+video = cv2.VideoCapture(0) #'../Assets/Videos/walk9_slow.mp4')
 
 check, frame = video.read()
 if check:
@@ -79,16 +79,16 @@ while True:
             cv2.rectangle(frame, (x1, y1), (x2, y2), (255,0,0), 2)
             cv2.rectangle(frame, (x1, y1), (x1 + int((x2-x1)/2), y1+18), (255, 0, 0), -1)
             cv2.circle(frame, (x1 + (x2-x1)/2, y2), 10, (0, 255, 0), -1)
-            cv2.putText(frame, classes[int(cls_pred)], (x1, y1 + 12), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 255, 0), 1)
+            cv2.putText(frame, classes[int(cls_pred)], (x1, y1 + 12), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
     #print(f'Elapced Time(S): {time.time() - prev_time}')
     fps = round(1 / (time.time() - prev_time), 2)
-    cv2.putText(frame, f'FPS:{fps}', (6, 18), cv2.FONT_HERSHEY_COMPLEX, 0.6, (0, 0, 0), 1)
+    cv2.putText(frame, f'FPS:{fps}', (6, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 1)
     #################################################################
-    cv2.imshow("Output - Bounding Box", frame)
+    cv2.imshow("Human Bounding Box", frame)
     #plt.show()
 
-    key = cv2.waitKey(1)
+    key = cv2.waitKey(10)
     if key == 27:
         break
 
