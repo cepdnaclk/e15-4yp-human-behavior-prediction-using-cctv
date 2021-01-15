@@ -14,9 +14,9 @@ from utils.lib_classifier import ClassifierOnlineTest
 from utils.lib_classifier import *  # Import all sklearn related libraries
 
 ################################################## Settings ############################################################
-SRC_MODEL_PATH    = 'model/action_classifier.pickle'
+CLASSIFIER_MODEL_PATH    = 'model_data/action_classifier/model.pickle'
 CLASSES           = np.array(['stand', 'walk', 'walk', 'stand', 'sit', 'walk', 'stand', 'stand', 'stand'])
-OPENPOSE_MODEL    = 'mobilenet_thin'
+OPENPOSE_MODEL_PATH    = 'model_data/mobilenet_thin/graph_opt.pb'
 OPENPOSE_IMG_SIZE = [656, 368] # 656x368 432x368, 336x288. Bigger is more accurate.
 WINDOW_SIZE       = 5          # Action recognition: number of frames used to extract features.
 
@@ -131,9 +131,9 @@ if __name__ == "__main__":
     payload_size = struct.calcsize("L")
     # -----------------------------------------------------------------------------------------------------------------#
     # -- Detector, tracker, classifier
-    skeleton_detector = SkeletonDetector(OPENPOSE_MODEL, OPENPOSE_IMG_SIZE)
+    skeleton_detector = SkeletonDetector(OPENPOSE_MODEL_PATH, OPENPOSE_IMG_SIZE)
     multiperson_tracker = Tracker()
-    multiperson_classifier = MultiPersonClassifier(SRC_MODEL_PATH, CLASSES)
+    multiperson_classifier = MultiPersonClassifier(CLASSIFIER_MODEL_PATH, CLASSES)
 
     # -- Read images and process
     ith_img = -1
