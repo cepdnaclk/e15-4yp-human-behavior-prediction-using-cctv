@@ -9,12 +9,10 @@ from tf_pose.network_mobilenet_thin import MobilenetNetworkThin
 from tf_pose.network_cmu import CmuNetwork
 from tf_pose.network_mobilenet_v2 import Mobilenetv2Network
 
-
 def _get_base_path():
     if not os.environ.get('OPENPOSE_MODEL', ''):
         return './models'
     return os.environ.get('OPENPOSE_MODEL')
-
 
 def get_network(type, placeholder_input, sess_for_load=None, trainable=True):
     if type == 'mobilenet':
@@ -126,7 +124,6 @@ def get_network(type, placeholder_input, sess_for_load=None, trainable=True):
 
     return net, pretrain_path_full, last_layer
 
-
 def get_graph_path(model_name):
     dyn_graph_path = {
         'cmu': 'graph/cmu/graph_opt.pb',
@@ -142,14 +139,13 @@ def get_graph_path(model_name):
     if os.path.exists(os.path.join(base_data_dir, 'models')):
         base_data_dir = os.path.join(base_data_dir, 'models')
     else:
-        base_data_dir = os.path.join(base_data_dir, 'tf_pose_data')
+        base_data_dir = os.path.join(base_data_dir, 'model_data')
 
     graph_path = os.path.join(base_data_dir, dyn_graph_path[model_name])
     if os.path.isfile(graph_path):
         return graph_path
 
     raise Exception('Graph file doesn\'t exist, path=%s' % graph_path)
-
 
 def model_wh(resolution_str):
     width, height = map(int, resolution_str.split('x'))
