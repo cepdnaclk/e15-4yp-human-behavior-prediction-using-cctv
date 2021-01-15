@@ -11,7 +11,7 @@ import cv2
 
 # openpose packages
 sys.path.append(ROOT + "src/githubs/tf-pose-estimation")
-from tf_pose.networks import get_graph_path, model_wh
+#from tf_pose.networks import get_graph_path, model_wh
 from tf_pose.estimator import TfPoseEstimator
 from tf_pose import common
 
@@ -61,7 +61,7 @@ class SkeletonDetector(object):
                 Recommends : 432x368, 336x288, 304x240, 656x368, 
         '''
         # -- Check input
-        assert(model in ["mobilenet_thin", "cmu"])
+        #assert(model in ["mobilenet_thin", "cmu"])
         #self._w, self._h = _get_input_img_size_from_string(image_size)
         self._w = image_size[0]
         self._h = image_size[1]
@@ -70,7 +70,7 @@ class SkeletonDetector(object):
         self._model = model
         self._resize_out_ratio = 4.0 # Resize heatmaps before they are post-processed. If image_size is small, this should be large.
         self._config = _set_config()
-        self._tf_pose_estimator = TfPoseEstimator(get_graph_path(self._model), target_size=(self._w, self._h),tf_config=self._config)
+        self._tf_pose_estimator = TfPoseEstimator(self._model, target_size=(self._w, self._h),tf_config=self._config)
         self._prev_t = time.time()
         self._cnt_image = 0
         
