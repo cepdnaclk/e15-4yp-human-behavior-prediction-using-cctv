@@ -554,7 +554,7 @@ class TfPoseEstimator:
             npimg = TfPoseEstimator._quantize_img(npimg)
             pass
 
-        logger.debug('inference+ original shape=%dx%d' % (npimg.shape[1], npimg.shape[0]))
+        #logger.debug('inference+ original shape=%dx%d' % (npimg.shape[1], npimg.shape[0]))
         img = npimg
         if resize_to_default:
             img = self._get_scaled_img(npimg, None)[0][0]
@@ -565,12 +565,11 @@ class TfPoseEstimator:
         peaks = peaks[0]
         self.heatMat = heatMat_up[0]
         self.pafMat = pafMat_up[0]
-        logger.debug('inference- heatMat=%dx%d pafMat=%dx%d' % (
-            self.heatMat.shape[1], self.heatMat.shape[0], self.pafMat.shape[1], self.pafMat.shape[0]))
+        #logger.debug('inference- heatMat=%dx%d pafMat=%dx%d' % (self.heatMat.shape[1], self.heatMat.shape[0], self.pafMat.shape[1], self.pafMat.shape[0]))
 
         t = time.time()
         humans = PoseEstimator.estimate_paf(peaks, self.heatMat, self.pafMat)
-        logger.debug('estimate time=%.5f' % (time.time() - t))
+        #logger.debug('estimate time=%.5f' % (time.time() - t))
         return humans
 
 

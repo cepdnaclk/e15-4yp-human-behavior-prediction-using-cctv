@@ -16,11 +16,12 @@ from utils.lib_draw import draw_track_boxes, draw_skel_boxes, draw_human_path, d
 
 from yolo.configs import *
 ################################################## Settings ############################################################
-CLASSIFIER_MODEL_PATH    = 'model_data/action_classifier/model.pickle'
+ACTION_MODEL_PATH    = 'model_data/action_classifier/model.pickle'
 ACTION_CLASSES           = np.array(['stand', 'walk', 'walk', 'stand', 'sit', 'walk', 'stand', 'stand', 'stand'])
+ACTION_BUFFER_SIZE       = 5          # Action recognition: number of frames used to extract features.
+
 OPENPOSE_MODEL_PATH    = 'model_data/mobilenet_thin/graph_opt.pb'
 OPENPOSE_IMG_SIZE = [656, 368] # 656x368 432x368, 336x288. Bigger is more accurate.
-WINDOW_SIZE       = 5          # Action recognition: number of frames used to extract features.
 
 SRC_FLOOR_PLAN = "assets/floor_plan.png"
 ########################################################################################################################
@@ -32,7 +33,7 @@ class MultiPersonClassifier(object):
         self.dict_id2clf = {}  # human id -> classifier of this person
 
         # Define a function for creating classifier for new people.
-        self._create_classifier = lambda human_id: ClassifierOnlineTest(model_path, classes, WINDOW_SIZE, human_id)
+        self._create_classifier = lambda human_id: ClassifierOnlineTest(model_path, classes, ACTION_BUFFER_SIZE, human_id)
 
     def classify(self, dict_id2skeleton):
         ''' Classify the action type of each skeleton in dict_id2skeleton '''
@@ -87,6 +88,26 @@ def remove_skeletons_with_few_joints(skeletons):
             good_skeletons.append(skeleton)
     return good_skeletons
 
+def match_skeleton_trackid(tracked_boxes, inner_boxes):
+    track_ids = []
+    print(tracked_boxes)
+    print(inner_boxes)
+    for t_box in tracked_boxes:
+        for in_box in inner_boxes:
+            in_box_area = abs(in_box[2] - in_box[0]) * abs(in_box[1] - in_box[3])
+            x_dist = (min(t_box[3], in_box[2]) - max(t_box[1], in_box[0]))
+            y_dist = (min(t_box[4], in_box[3]) - max(t_box[2], in_box[1]))
+
+            overlap_area = 0
+            if x_dist > 0 and y_dist > 0:
+                overlap_area = x_dist * y_dist
+
+            print(overlap_area/in_box_area)
+            if overlap_area/in_box_area >= 0.8:
+                track_ids.append(t_box[0])
+                break
+
+    return track_ids
 ########################################################################################################################
 if __name__ == "__main__":
 
@@ -110,7 +131,7 @@ if __name__ == "__main__":
     # -- Detector, tracker, classifier
     skeleton_detector = SkeletonDetector(OPENPOSE_MODEL_PATH, OPENPOSE_IMG_SIZE)
     multiperson_tracker = Tracker()
-    multiperson_classifier = MultiPersonClassifier(CLASSIFIER_MODEL_PATH, ACTION_CLASSES)
+    multiperson_classifier = MultiPersonClassifier(ACTION_MODEL_PATH, ACTION_CLASSES)
 
     # -- Read images and process
     floor_plan = cv2.imread(SRC_FLOOR_PLAN)
@@ -141,8 +162,10 @@ if __name__ == "__main__":
         # -- Detect skeletons
         humans = skeleton_detector.detect(current_image)
         inner_boxes = skeleton_detector.draw(current_image, humans)
-
+        tracks = match_skeleton_trackid(tracked_boxes, inner_boxes)
+        print(f'trackes{tracks}')
         skeletons, scale_h = skeleton_detector.humans_to_skels_list(humans)
+        print(f'Skel len{len(skeletons)}')
         skeletons = remove_skeletons_with_few_joints(skeletons)
 
         # -- Track people
@@ -160,7 +183,7 @@ if __name__ == "__main__":
 
 
 
-        draw_skel_boxes(current_image, boxes)
+        draw_skel_boxes(current_image, inner_boxes)
         #current_image = draw_human_skeleton(current_image, humans, dict_id2skeleton, dict_id2label, scale_h, skeleton_detector)
 
         cv2.imshow('CCTV Stream', current_image)

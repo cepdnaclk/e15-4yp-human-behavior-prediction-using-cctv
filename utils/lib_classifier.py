@@ -1,17 +1,3 @@
-'''
-This script includes:
-
-1. ClassifierOfflineTrain
-    This is for offline training. The input data are the processed features.
-2. class ClassifierOnlineTest(object)
-    This is for online testing. The input data are the raw skeletons.
-    It uses FeatureGenerator to extract features,
-    and then use ClassifierOfflineTrain to recognize the action.
-    Notice, this model is only for recognizing the action of one person.
-    
-TODO: Add more comments to this function.
-'''
-
 import numpy as np
 import sys
 import os
@@ -107,8 +93,7 @@ class ClassifierOfflineTrain(object):
             SVC(gamma=0.01, C=1.0, verbose=True),
             GaussianProcessClassifier(1.0 * RBF(1.0)),
             DecisionTreeClassifier(max_depth=5),
-            RandomForestClassifier(
-                max_depth=30, n_estimators=100, max_features="auto"),
+            RandomForestClassifier(max_depth=30, n_estimators=100, max_features="auto"),
             MLPClassifier((20, 30, 40)),  # Neural Net
             AdaBoostClassifier(),
             GaussianNB(),
@@ -184,7 +169,7 @@ class ClassifierOnlineTest(object):
             for score in self.scores_hist:
                 score_sums += score
             score_sums /= len(self.scores_hist)
-            print("\nMean score:\n", score_sums)
+            #print("\nMean score:\n", score_sums)
             return score_sums
 
         else:  # Use multiply
