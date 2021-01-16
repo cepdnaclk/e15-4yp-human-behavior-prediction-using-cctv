@@ -1,19 +1,12 @@
 from multiprocessing import Process, Queue, Pipe
 import cv2
 import time
-import random
-import colorsys
-import numpy as np
+
 import tensorflow as tf
 from yolo.configs import *
 from yolo.yolov4 import *
 from tensorflow.python.saved_model import tag_constants
 
-pts_src = np.array([[140, 678], [336,259], [385,147],[736,80], [916 , 35] , [1113 , 571]])
-pts_dst = np.array([[0,335],[0,104],[0,0],[289,0], [406,0] , [335,406]])
-h_mat, status = cv2.findHomography(pts_src, pts_dst)
-pts = np.array([[140, 678], [336,259], [385,147],[736,80], [916 , 35] , [1113 , 571]], np.int32)
-pts = pts.reshape((-1,1,2))
 
 def load_yolo_weights(model, weights_file):
     tf.keras.backend.clear_session() # used to reset layer names

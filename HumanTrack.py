@@ -17,13 +17,6 @@ import pickle
 import struct
 import socket
 
-################################################## Settings ############################################################
-SRC_VIDEO_SAMPLE_INTERVAL = 1
-SRC_VIDEO_PATH = 0 #"assets/TwoHuman.mp4"
-SRC_DEEPSORT_MODEL_PATH = 'model_data/mars-small128/mars-small128.pb'
-
-########################################################################################################################
-
 if __name__ == "__main__":
     iou_threshold = 0.1 #0.45
     score_threshold = 0.3
@@ -91,13 +84,13 @@ if __name__ == "__main__":
             if not track.is_confirmed() or track.time_since_update > 5:
                 continue
             #foot_coor = np.array([np.array([[bbox[0] + (bbox[2] - bbox[0]) / 2, bbox[3]]], dtype='float32')])
-            tracked_bboxes.append([track.track_id]+[round(i, 0) for i in track.to_tlbr().tolist()])
+            tracked_bboxes.append([track.track_id]+[round(i) for i in track.to_tlbr().tolist()])
 
         data_bag = {}
         data_bag['frame'] = frame
         data_bag['boxes'] = tracked_bboxes
 
-        print(tracked_bboxes)
+        #print(tracked_bboxes)
         if CONNECTION_ENABLE:
             data = pickle.dumps(data_bag)
             clientsocket.sendall(struct.pack("L", len(data)) + data)
@@ -105,7 +98,13 @@ if __name__ == "__main__":
         toc = time.time()
         print(f'FPS: {1 / (toc - tic)}')
 
+'''
+        cv2.imshow('Tracking', frame)
+        key = cv2.waitKey(1)
+        if key == 'q':
+            break
 
+    cv2.destroyAllWindows()
 
-
+'''
 

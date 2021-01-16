@@ -113,10 +113,12 @@ class SkeletonDetector(object):
             img_disp {RGB image}
             humans {a class returned by self.detect}
         '''
-        img_disp = TfPoseEstimator.draw_humans(img_disp, humans, imgcopy=False)
+        #box =
+        TfPoseEstimator.draw_humans(img_disp, humans, imgcopy=False)
         if IS_DRAW_FPS:
             cv2.putText(img_disp, "fps = {:.1f}".format( (1.0 / (time.time() - self._prev_t) )), (10, 30),  cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
         self._prev_t = time.time()
+
 
     def humans_to_skels_list(self, humans, scale_h = None): 
         ''' Get skeleton data of (x, y * scale_h) from humans.

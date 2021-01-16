@@ -5,14 +5,13 @@ import struct
 import socket
 import argparse
 
-import utils.lib_plot as lib_plot
 import utils.lib_commons as lib_commons
 from utils.lib_openpose import SkeletonDetector
 from utils.lib_tracker import Tracker
 from utils.lib_tracker import Tracker
 from utils.lib_classifier import ClassifierOnlineTest
 from utils.lib_classifier import *  # Import all sklearn related libraries
-from utils.lib_draw import draw_bbox, draw_path
+from utils.lib_draw import draw_track_boxes, draw_human_path, draw_human_skeleton
 ########################################################################################################################
 
 from yolo.configs import *
@@ -24,16 +23,9 @@ OPENPOSE_IMG_SIZE = [656, 368] # 656x368 432x368, 336x288. Bigger is more accura
 WINDOW_SIZE       = 5          # Action recognition: number of frames used to extract features.
 
 SRC_FLOOR_PLAN = "assets/floor_plan.png"
-
-# Display Settings
-img_disp_desired_rows = 480
-
 ########################################################################################################################
 
 class MultiPersonClassifier(object):
-    ''' This is a wrapper around ClassifierOnlineTest
-        for recognizing actions of multiple people.
-    '''
 
     def __init__(self, model_path, classes):
 
@@ -95,41 +87,26 @@ def remove_skeletons_with_few_joints(skeletons):
             good_skeletons.append(skeleton)
     return good_skeletons
 
-def draw_result_img(img_disp, humans, dict_id2skeleton, skeleton_detector):
-    ''' Draw skeletons, labels, and prediction scores onto image for display '''
-
-    # Resize to a proper size for display
-    r, c = img_disp.shape[0:2]
-    desired_cols = int(1.0 * c * (img_disp_desired_rows / r))
-    img_disp = cv2.resize(img_disp, dsize=(desired_cols, img_disp_desired_rows))
-
-    # Draw all people's skeleton
-    skeleton_detector.draw(img_disp, humans)
-
-    # Draw bounding box and label of each person
-    if len(dict_id2skeleton):
-        for id, label in dict_id2label.items():
-            skeleton = dict_id2skeleton[id]
-            skeleton[1::2] = skeleton[1::2] / scale_h
-            lib_plot.draw_action_result(img_disp, id, skeleton, label)
-    return img_disp
-
 ########################################################################################################################
 if __name__ == "__main__":
 
     # -----------------------------------------------------------------------------------------------------------------#
     # Network Intialization
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    print('Socket created')
-    s.bind((HOST, PORT))
-    print('Socket bind complete')
-    s.listen(10)
-    print('Socket now listening')
+    if CONNECTION_ENABLE:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print('Socket created')
+        s.bind((HOST, PORT))
+        print('Socket bind complete')
+        s.listen(10)
+        print('Socket now listening')
 
-    conn, addr = s.accept()
-    data = b''
-    payload_size = struct.calcsize("L")
+        conn, addr = s.accept()
+        data = b''
+        payload_size = struct.calcsize("L")
+    else:
+        vid = cv2.VideoCapture(SRC_VIDEO_PATH)
     # -----------------------------------------------------------------------------------------------------------------#
+
     # -- Detector, tracker, classifier
     skeleton_detector = SkeletonDetector(OPENPOSE_MODEL_PATH, OPENPOSE_IMG_SIZE)
     multiperson_tracker = Tracker()
@@ -140,32 +117,42 @@ if __name__ == "__main__":
 
     while True:
         #--------------------------------------------------------------------------------------------------------------#
-        while len(data) < payload_size:
-            data += conn.recv(4096)
+        if CONNECTION_ENABLE:
+            while len(data) < payload_size:
+                data += conn.recv(4096)
 
-        packed_msg_size = data[:payload_size]
+            packed_msg_size = data[:payload_size]
 
-        data = data[payload_size:]
-        msg_size = struct.unpack("L", packed_msg_size)[0]
+            data = data[payload_size:]
+            msg_size = struct.unpack("L", packed_msg_size)[0]
 
-        while len(data) < msg_size:
-            data += conn.recv(4096)
+            while len(data) < msg_size:
+                data += conn.recv(4096)
 
-        frame_data = data[:msg_size]
-        data = data[msg_size:]
-        data_bag = pickle.loads(frame_data)
-        current_image = data_bag['frame']
-        tracked_bboxes = data_bag['boxes']
-        print(tracked_bboxes)
+            frame_data = data[:msg_size]
+            data = data[msg_size:]
+            data_bag = pickle.loads(frame_data)
+            current_image = data_bag['frame']
+            tracked_bboxes = data_bag['boxes']
+        else:
+            check, current_image = vid.read()
         # --------------------------------------------------------------------------------------------------------------#
 
         # -- Detect skeletons
         humans = skeleton_detector.detect(current_image)
+        for human in humans:
+            print(human)
+
         skeletons, scale_h = skeleton_detector.humans_to_skels_list(humans)
+        for skeleton in skeletons:
+            print(skeleton)
         skeletons = remove_skeletons_with_few_joints(skeletons)
 
         # -- Track people
         dict_id2skeleton = multiperson_tracker.track(skeletons)  # int id -> np.array() skeleton
+        for id, skeleton in dict_id2skeleton.items():
+            print(id)
+            print(skeleton)
 
         # -- Recognize action of each person
         dict_id2label = None
@@ -173,9 +160,13 @@ if __name__ == "__main__":
             dict_id2label = multiperson_classifier.classify(dict_id2skeleton)
 
         # -- Draw
-        #current_image = draw_bbox(current_image, tracked_bboxes, CLASSES=YOLO_COCO_CLASSES, tracking=True)
-        current_image = draw_result_img(current_image, humans, dict_id2skeleton, skeleton_detector)
-        #floor_plan = draw_path(floor_plan, tracked_bboxes, human_paths)
+        if CONNECTION_ENABLE:
+            draw_track_boxes(current_image, tracked_bboxes)
+            #floor_plan = draw_human_path(floor_plan, tracked_bboxes)
+
+
+        skeleton_detector.draw(current_image, humans)
+        #current_image = draw_human_skeleton(current_image, humans, dict_id2skeleton, dict_id2label, scale_h, skeleton_detector)
 
         cv2.imshow('CCTV Stream', current_image)
         cv2.imshow('FloorPlan', floor_plan)
