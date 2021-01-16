@@ -12,21 +12,22 @@ from utils.lib_tracker import Tracker
 from utils.lib_tracker import Tracker
 from utils.lib_classifier import ClassifierOnlineTest
 from utils.lib_classifier import *  # Import all sklearn related libraries
+from utils.lib_draw import draw_bbox, draw_path
+########################################################################################################################
 
+from yolo.configs import *
 ################################################## Settings ############################################################
 CLASSIFIER_MODEL_PATH    = 'model_data/action_classifier/model.pickle'
-CLASSES           = np.array(['stand', 'walk', 'walk', 'stand', 'sit', 'walk', 'stand', 'stand', 'stand'])
+ACTION_CLASSES           = np.array(['stand', 'walk', 'walk', 'stand', 'sit', 'walk', 'stand', 'stand', 'stand'])
 OPENPOSE_MODEL_PATH    = 'model_data/mobilenet_thin/graph_opt.pb'
 OPENPOSE_IMG_SIZE = [656, 368] # 656x368 432x368, 336x288. Bigger is more accurate.
 WINDOW_SIZE       = 5          # Action recognition: number of frames used to extract features.
 
+SRC_FLOOR_PLAN = "assets/floor_plan.png"
+
 # Display Settings
 img_disp_desired_rows = 480
 
-# Network Settings
-HOST = '127.0.0.1'
-PORT = 8083
-CONNECTION_ENABLE = False
 ########################################################################################################################
 
 class MultiPersonClassifier(object):
@@ -126,17 +127,17 @@ if __name__ == "__main__":
     print('Socket now listening')
 
     conn, addr = s.accept()
-
     data = b''
     payload_size = struct.calcsize("L")
     # -----------------------------------------------------------------------------------------------------------------#
     # -- Detector, tracker, classifier
     skeleton_detector = SkeletonDetector(OPENPOSE_MODEL_PATH, OPENPOSE_IMG_SIZE)
     multiperson_tracker = Tracker()
-    multiperson_classifier = MultiPersonClassifier(CLASSIFIER_MODEL_PATH, CLASSES)
+    multiperson_classifier = MultiPersonClassifier(CLASSIFIER_MODEL_PATH, ACTION_CLASSES)
 
     # -- Read images and process
-    ith_img = -1
+    floor_plan = cv2.imread(SRC_FLOOR_PLAN)
+
     while True:
         #--------------------------------------------------------------------------------------------------------------#
         while len(data) < payload_size:
@@ -172,9 +173,12 @@ if __name__ == "__main__":
             dict_id2label = multiperson_classifier.classify(dict_id2skeleton)
 
         # -- Draw
+        #current_image = draw_bbox(current_image, tracked_bboxes, CLASSES=YOLO_COCO_CLASSES, tracking=True)
         current_image = draw_result_img(current_image, humans, dict_id2skeleton, skeleton_detector)
+        #floor_plan = draw_path(floor_plan, tracked_bboxes, human_paths)
 
-        cv2.imshow('Skeleton', current_image)
+        cv2.imshow('CCTV Stream', current_image)
+        cv2.imshow('FloorPlan', floor_plan)
         key = cv2.waitKey(1)
         if key == 'q':
             break

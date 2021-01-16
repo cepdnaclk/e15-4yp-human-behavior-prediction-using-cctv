@@ -1,22 +1,19 @@
-#================================================================
-#
-#   File name   : yolov3.py
-#   Author      : PyLessons
-#   Created date: 2020-06-04
-#   Website     : https://pylessons.com/
-#   GitHub      : https://github.com/pythonlessons/TensorFlow-2.x-YOLOv3
-#   Description : main yolov3 functions
-#
-#================================================================
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.layers import Conv2D, Input, LeakyReLU, ZeroPadding2D, BatchNormalization, MaxPool2D
 from tensorflow.keras.regularizers import l2
-from yolov3.utils import read_class_names
-from yolov3.configs import *
+from yolo.configs import *
 
 STRIDES         = np.array(YOLO_STRIDES)
 ANCHORS         = (np.array(YOLO_ANCHORS).T/STRIDES).T
+
+def read_class_names(class_file_name):
+    # loads class name from a file
+    names = {}
+    with open(class_file_name, 'r') as data:
+        for ID, name in enumerate(data):
+            names[ID] = name.strip('\n')
+    return names
 
 class BatchNormalization(BatchNormalization):
     # "Frozen state" and "inference mode" are two separate concepts.
@@ -29,7 +26,7 @@ class BatchNormalization(BatchNormalization):
         training = tf.logical_and(training, self.trainable)
         return super().call(x, training)
 
-def convolutional(input_layer, filters_shape, downsample=False, activate=True, bn=True):
+def convolutional(input_layer, filters_shape, downsample=False, activate=True, bn=True, activate_type='leaky'):
     if downsample:
         input_layer = ZeroPadding2D(((1, 0), (1, 0)))(input_layer)
         padding = 'valid'
@@ -45,14 +42,20 @@ def convolutional(input_layer, filters_shape, downsample=False, activate=True, b
     if bn:
         conv = BatchNormalization()(conv)
     if activate == True:
-        conv = LeakyReLU(alpha=0.1)(conv)
+        if activate_type == "leaky":
+            conv = LeakyReLU(alpha=0.1)(conv)
+        elif activate_type == "mish":
+            conv = mish(conv)
 
     return conv
 
-def residual_block(input_layer, input_channel, filter_num1, filter_num2):
+def mish(x):
+    return x * tf.math.tanh(tf.math.softplus(x))
+
+def residual_block(input_layer, input_channel, filter_num1, filter_num2, activate_type='leaky'):
     short_cut = input_layer
-    conv = convolutional(input_layer, filters_shape=(1, 1, input_channel, filter_num1))
-    conv = convolutional(conv       , filters_shape=(3, 3, filter_num1,   filter_num2))
+    conv = convolutional(input_layer, filters_shape=(1, 1, input_channel, filter_num1), activate_type=activate_type)
+    conv = convolutional(conv       , filters_shape=(3, 3, filter_num1,   filter_num2), activate_type=activate_type)
 
     residual_output = short_cut + conv
     return residual_output
@@ -60,6 +63,9 @@ def residual_block(input_layer, input_channel, filter_num1, filter_num2):
 def upsample(input_layer):
     return tf.image.resize(input_layer, (input_layer.shape[1] * 2, input_layer.shape[2] * 2), method='nearest')
 
+def route_group(input_layer, groups, group_id):
+    convs = tf.split(input_layer, num_or_size_splits=groups, axis=-1)
+    return convs[group_id]
 
 def darknet53(input_data):
     input_data = convolutional(input_data, (3, 3,  3,  32))
@@ -92,6 +98,73 @@ def darknet53(input_data):
 
     return route_1, route_2, input_data
 
+def cspdarknet53(input_data):
+    input_data = convolutional(input_data, (3, 3,  3,  32), activate_type="mish")
+    input_data = convolutional(input_data, (3, 3, 32,  64), downsample=True, activate_type="mish")
+
+    route = input_data
+    route = convolutional(route, (1, 1, 64, 64), activate_type="mish")
+    input_data = convolutional(input_data, (1, 1, 64, 64), activate_type="mish")
+    for i in range(1):
+        input_data = residual_block(input_data,  64,  32, 64, activate_type="mish")
+    input_data = convolutional(input_data, (1, 1, 64, 64), activate_type="mish")
+
+    input_data = tf.concat([input_data, route], axis=-1)
+    input_data = convolutional(input_data, (1, 1, 128, 64), activate_type="mish")
+    input_data = convolutional(input_data, (3, 3, 64, 128), downsample=True, activate_type="mish")
+    route = input_data
+    route = convolutional(route, (1, 1, 128, 64), activate_type="mish")
+    input_data = convolutional(input_data, (1, 1, 128, 64), activate_type="mish")
+    for i in range(2):
+        input_data = residual_block(input_data, 64,  64, 64, activate_type="mish")
+    input_data = convolutional(input_data, (1, 1, 64, 64), activate_type="mish")
+    input_data = tf.concat([input_data, route], axis=-1)
+
+    input_data = convolutional(input_data, (1, 1, 128, 128), activate_type="mish")
+    input_data = convolutional(input_data, (3, 3, 128, 256), downsample=True, activate_type="mish")
+    route = input_data
+    route = convolutional(route, (1, 1, 256, 128), activate_type="mish")
+    input_data = convolutional(input_data, (1, 1, 256, 128), activate_type="mish")
+    for i in range(8):
+        input_data = residual_block(input_data, 128, 128, 128, activate_type="mish")
+    input_data = convolutional(input_data, (1, 1, 128, 128), activate_type="mish")
+    input_data = tf.concat([input_data, route], axis=-1)
+
+    input_data = convolutional(input_data, (1, 1, 256, 256), activate_type="mish")
+    route_1 = input_data
+    input_data = convolutional(input_data, (3, 3, 256, 512), downsample=True, activate_type="mish")
+    route = input_data
+    route = convolutional(route, (1, 1, 512, 256), activate_type="mish")
+    input_data = convolutional(input_data, (1, 1, 512, 256), activate_type="mish")
+    for i in range(8):
+        input_data = residual_block(input_data, 256, 256, 256, activate_type="mish")
+    input_data = convolutional(input_data, (1, 1, 256, 256), activate_type="mish")
+    input_data = tf.concat([input_data, route], axis=-1)
+
+    input_data = convolutional(input_data, (1, 1, 512, 512), activate_type="mish")
+    route_2 = input_data
+    input_data = convolutional(input_data, (3, 3, 512, 1024), downsample=True, activate_type="mish")
+    route = input_data
+    route = convolutional(route, (1, 1, 1024, 512), activate_type="mish")
+    input_data = convolutional(input_data, (1, 1, 1024, 512), activate_type="mish")
+    for i in range(4):
+        input_data = residual_block(input_data, 512, 512, 512, activate_type="mish")
+    input_data = convolutional(input_data, (1, 1, 512, 512), activate_type="mish")
+    input_data = tf.concat([input_data, route], axis=-1)
+
+    input_data = convolutional(input_data, (1, 1, 1024, 1024), activate_type="mish")
+    input_data = convolutional(input_data, (1, 1, 1024, 512))
+    input_data = convolutional(input_data, (3, 3, 512, 1024))
+    input_data = convolutional(input_data, (1, 1, 1024, 512))
+
+    input_data = tf.concat([tf.nn.max_pool(input_data, ksize=13, padding='SAME', strides=1), tf.nn.max_pool(input_data, ksize=9, padding='SAME', strides=1)
+                            , tf.nn.max_pool(input_data, ksize=5, padding='SAME', strides=1), input_data], axis=-1)
+    input_data = convolutional(input_data, (1, 1, 2048, 512))
+    input_data = convolutional(input_data, (3, 3, 512, 1024))
+    input_data = convolutional(input_data, (1, 1, 1024, 512))
+
+    return route_1, route_2, input_data
+
 def darknet19_tiny(input_data):
     input_data = convolutional(input_data, (3, 3, 3, 16))
     input_data = MaxPool2D(2, 2, 'same')(input_data)
@@ -107,6 +180,48 @@ def darknet19_tiny(input_data):
     input_data = convolutional(input_data, (3, 3, 256, 512))
     input_data = MaxPool2D(2, 1, 'same')(input_data)
     input_data = convolutional(input_data, (3, 3, 512, 1024))
+
+    return route_1, input_data
+
+def cspdarknet53_tiny(input_data): # not sure how this should be called
+    input_data = convolutional(input_data, (3, 3, 3, 32), downsample=True)
+    input_data = convolutional(input_data, (3, 3, 32, 64), downsample=True)
+    input_data = convolutional(input_data, (3, 3, 64, 64))
+
+    route = input_data
+    input_data = route_group(input_data, 2, 1)
+    input_data = convolutional(input_data, (3, 3, 32, 32))
+    route_1 = input_data
+    input_data = convolutional(input_data, (3, 3, 32, 32))
+    input_data = tf.concat([input_data, route_1], axis=-1)
+    input_data = convolutional(input_data, (1, 1, 32, 64))
+    input_data = tf.concat([route, input_data], axis=-1)
+    input_data = MaxPool2D(2, 2, 'same')(input_data)
+
+    input_data = convolutional(input_data, (3, 3, 64, 128))
+    route = input_data
+    input_data = route_group(input_data, 2, 1)
+    input_data = convolutional(input_data, (3, 3, 64, 64))
+    route_1 = input_data
+    input_data = convolutional(input_data, (3, 3, 64, 64))
+    input_data = tf.concat([input_data, route_1], axis=-1)
+    input_data = convolutional(input_data, (1, 1, 64, 128))
+    input_data = tf.concat([route, input_data], axis=-1)
+    input_data = MaxPool2D(2, 2, 'same')(input_data)
+
+    input_data = convolutional(input_data, (3, 3, 128, 256))
+    route = input_data
+    input_data = route_group(input_data, 2, 1)
+    input_data = convolutional(input_data, (3, 3, 128, 128))
+    route_1 = input_data
+    input_data = convolutional(input_data, (3, 3, 128, 128))
+    input_data = tf.concat([input_data, route_1], axis=-1)
+    input_data = convolutional(input_data, (1, 1, 128, 256))
+    route_1 = input_data
+    input_data = tf.concat([route, input_data], axis=-1)
+    input_data = MaxPool2D(2, 2, 'same')(input_data)
+
+    input_data = convolutional(input_data, (3, 3, 512, 512))
 
     return route_1, input_data
 
@@ -156,6 +271,64 @@ def YOLOv3(input_layer, NUM_CLASS):
         
     return [conv_sbbox, conv_mbbox, conv_lbbox]
 
+def YOLOv4(input_layer, NUM_CLASS):
+    route_1, route_2, conv = cspdarknet53(input_layer)
+
+    route = conv
+    conv = convolutional(conv, (1, 1, 512, 256))
+    conv = upsample(conv)
+    route_2 = convolutional(route_2, (1, 1, 512, 256))
+    conv = tf.concat([route_2, conv], axis=-1)
+
+    conv = convolutional(conv, (1, 1, 512, 256))
+    conv = convolutional(conv, (3, 3, 256, 512))
+    conv = convolutional(conv, (1, 1, 512, 256))
+    conv = convolutional(conv, (3, 3, 256, 512))
+    conv = convolutional(conv, (1, 1, 512, 256))
+
+    route_2 = conv
+    conv = convolutional(conv, (1, 1, 256, 128))
+    conv = upsample(conv)
+    route_1 = convolutional(route_1, (1, 1, 256, 128))
+    conv = tf.concat([route_1, conv], axis=-1)
+
+    conv = convolutional(conv, (1, 1, 256, 128))
+    conv = convolutional(conv, (3, 3, 128, 256))
+    conv = convolutional(conv, (1, 1, 256, 128))
+    conv = convolutional(conv, (3, 3, 128, 256))
+    conv = convolutional(conv, (1, 1, 256, 128))
+
+    route_1 = conv
+    conv = convolutional(conv, (3, 3, 128, 256))
+    conv_sbbox = convolutional(conv, (1, 1, 256, 3 * (NUM_CLASS + 5)), activate=False, bn=False)
+
+    conv = convolutional(route_1, (3, 3, 128, 256), downsample=True)
+    conv = tf.concat([conv, route_2], axis=-1)
+
+    conv = convolutional(conv, (1, 1, 512, 256))
+    conv = convolutional(conv, (3, 3, 256, 512))
+    conv = convolutional(conv, (1, 1, 512, 256))
+    conv = convolutional(conv, (3, 3, 256, 512))
+    conv = convolutional(conv, (1, 1, 512, 256))
+
+    route_2 = conv
+    conv = convolutional(conv, (3, 3, 256, 512))
+    conv_mbbox = convolutional(conv, (1, 1, 512, 3 * (NUM_CLASS + 5)), activate=False, bn=False)
+
+    conv = convolutional(route_2, (3, 3, 256, 512), downsample=True)
+    conv = tf.concat([conv, route], axis=-1)
+
+    conv = convolutional(conv, (1, 1, 1024, 512))
+    conv = convolutional(conv, (3, 3, 512, 1024))
+    conv = convolutional(conv, (1, 1, 1024, 512))
+    conv = convolutional(conv, (3, 3, 512, 1024))
+    conv = convolutional(conv, (1, 1, 1024, 512))
+
+    conv = convolutional(conv, (3, 3, 512, 1024))
+    conv_lbbox = convolutional(conv, (1, 1, 1024, 3 * (NUM_CLASS + 5)), activate=False, bn=False)
+
+    return [conv_sbbox, conv_mbbox, conv_lbbox]
+
 def YOLOv3_tiny(input_layer, NUM_CLASS):
     # After the input layer enters the Darknet-53 network, we get three branches
     route_1, conv = darknet19_tiny(input_layer)
@@ -178,14 +351,37 @@ def YOLOv3_tiny(input_layer, NUM_CLASS):
 
     return [conv_mbbox, conv_lbbox]
 
-def Create_Yolov3(input_size=416, channels=3, training=False, CLASSES=YOLO_COCO_CLASSES):
+def YOLOv4_tiny(input_layer, NUM_CLASS):
+    route_1, conv = cspdarknet53_tiny(input_layer)
+
+    conv = convolutional(conv, (1, 1, 512, 256))
+
+    conv_lobj_branch = convolutional(conv, (3, 3, 256, 512))
+    conv_lbbox = convolutional(conv_lobj_branch, (1, 1, 512, 3 * (NUM_CLASS + 5)), activate=False, bn=False)
+
+    conv = convolutional(conv, (1, 1, 256, 128))
+    conv = upsample(conv)
+    conv = tf.concat([conv, route_1], axis=-1)
+
+    conv_mobj_branch = convolutional(conv, (3, 3, 128, 256))
+    conv_mbbox = convolutional(conv_mobj_branch, (1, 1, 256, 3 * (NUM_CLASS + 5)), activate=False, bn=False)
+
+    return [conv_mbbox, conv_lbbox]
+
+def Create_Yolo(input_size=416, channels=3, training=False, CLASSES=YOLO_COCO_CLASSES):
     NUM_CLASS = len(read_class_names(CLASSES))
     input_layer  = Input([input_size, input_size, channels])
 
     if TRAIN_YOLO_TINY:
-        conv_tensors = YOLOv3_tiny(input_layer, NUM_CLASS)
+        if YOLO_TYPE == "yolov4":
+            conv_tensors = YOLOv4_tiny(input_layer, NUM_CLASS)
+        if YOLO_TYPE == "yolov3":
+            conv_tensors = YOLOv3_tiny(input_layer, NUM_CLASS)
     else:
-        conv_tensors = YOLOv3(input_layer, NUM_CLASS)
+        if YOLO_TYPE == "yolov4":
+            conv_tensors = YOLOv4(input_layer, NUM_CLASS)
+        if YOLO_TYPE == "yolov3":
+            conv_tensors = YOLOv3(input_layer, NUM_CLASS)
 
     output_tensors = []
     for i, conv_tensor in enumerate(conv_tensors):
@@ -193,8 +389,8 @@ def Create_Yolov3(input_size=416, channels=3, training=False, CLASSES=YOLO_COCO_
         if training: output_tensors.append(conv_tensor)
         output_tensors.append(pred_tensor)
 
-    YoloV3 = tf.keras.Model(input_layer, output_tensors)
-    return YoloV3
+    Yolo = tf.keras.Model(input_layer, output_tensors)
+    return Yolo
 
 def decode(conv_output, NUM_CLASS, i=0):
     # where i = 0, 1 or 2 to correspond to the three grid scales  
@@ -204,22 +400,27 @@ def decode(conv_output, NUM_CLASS, i=0):
 
     conv_output = tf.reshape(conv_output, (batch_size, output_size, output_size, 3, 5 + NUM_CLASS))
 
-    conv_raw_dxdy = conv_output[:, :, :, :, 0:2] # offset of center position     
-    conv_raw_dwdh = conv_output[:, :, :, :, 2:4] # Prediction box length and width offset
-    conv_raw_conf = conv_output[:, :, :, :, 4:5] # confidence of the prediction box
-    conv_raw_prob = conv_output[:, :, :, :, 5: ] # category probability of the prediction box 
+    #conv_raw_dxdy = conv_output[:, :, :, :, 0:2] # offset of center position     
+    #conv_raw_dwdh = conv_output[:, :, :, :, 2:4] # Prediction box length and width offset
+    #conv_raw_conf = conv_output[:, :, :, :, 4:5] # confidence of the prediction box
+    #conv_raw_prob = conv_output[:, :, :, :, 5: ] # category probability of the prediction box
+    conv_raw_dxdy, conv_raw_dwdh, conv_raw_conf, conv_raw_prob = tf.split(conv_output, (2, 2, 1, NUM_CLASS), axis=-1)
 
     # next need Draw the grid. Where output_size is equal to 13, 26 or 52  
-    y = tf.range(output_size, dtype=tf.int32)
-    y = tf.expand_dims(y, -1)
-    y = tf.tile(y, [1, output_size])
-    x = tf.range(output_size,dtype=tf.int32)
-    x = tf.expand_dims(x, 0)
-    x = tf.tile(x, [output_size, 1])
-
-    xy_grid = tf.concat([x[:, :, tf.newaxis], y[:, :, tf.newaxis]], axis=-1)
-    xy_grid = tf.tile(xy_grid[tf.newaxis, :, :, tf.newaxis, :], [batch_size, 1, 1, 3, 1])
+    #y = tf.range(output_size, dtype=tf.int32)
+    #y = tf.expand_dims(y, -1)
+    #y = tf.tile(y, [1, output_size])
+    #x = tf.range(output_size,dtype=tf.int32)
+    #x = tf.expand_dims(x, 0)
+    #x = tf.tile(x, [output_size, 1])
+    xy_grid = tf.meshgrid(tf.range(output_size), tf.range(output_size))
+    xy_grid = tf.expand_dims(tf.stack(xy_grid, axis=-1), axis=2)  # [gx, gy, 1, 2]
+    xy_grid = tf.tile(tf.expand_dims(xy_grid, axis=0), [batch_size, 1, 1, 3, 1])
     xy_grid = tf.cast(xy_grid, tf.float32)
+    
+    #xy_grid = tf.concat([x[:, :, tf.newaxis], y[:, :, tf.newaxis]], axis=-1)
+    #xy_grid = tf.tile(xy_grid[tf.newaxis, :, :, tf.newaxis, :], [batch_size, 1, 1, 3, 1])
+    #y_grid = tf.cast(xy_grid, tf.float32)
 
     # Calculate the center position of the prediction box:
     pred_xy = (tf.sigmoid(conv_raw_dxdy) + xy_grid) * STRIDES[i]
