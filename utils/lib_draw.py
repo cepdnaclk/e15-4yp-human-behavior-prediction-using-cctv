@@ -30,7 +30,13 @@ def draw_track_boxes(image, tracked_bboxes):
         cv2.rectangle(image, (x1, y1), (x1 + text_width, y1 - text_height - baseline), colors[id], thickness=cv2.FILLED)
         cv2.putText(image, text, (x1, y1 - 4), cv2.FONT_HERSHEY_COMPLEX_SMALL, font_scale, [0, 0, 0], font_think, lineType=cv2.LINE_AA)
 
+def draw_skel_boxes(image, tracked_bboxes):
+    for x1, y1, x2, y2 in tracked_bboxes:
+        cv2.rectangle(image, (x1, y1), (x2, y2), [255,0,0] , 2)
 
+
+
+#Gonna Remove
 def draw_boxes(image, tracked_bboxes):
     '''
     image_h, image_w, _ = image.shape

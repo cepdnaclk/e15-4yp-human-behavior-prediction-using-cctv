@@ -11,7 +11,7 @@ from utils.lib_tracker import Tracker
 from utils.lib_tracker import Tracker
 from utils.lib_classifier import ClassifierOnlineTest
 from utils.lib_classifier import *  # Import all sklearn related libraries
-from utils.lib_draw import draw_track_boxes, draw_human_path, draw_human_skeleton
+from utils.lib_draw import draw_track_boxes, draw_skel_boxes, draw_human_path, draw_human_skeleton
 ########################################################################################################################
 
 from yolo.configs import *
@@ -133,26 +133,20 @@ if __name__ == "__main__":
             data = data[msg_size:]
             data_bag = pickle.loads(frame_data)
             current_image = data_bag['frame']
-            tracked_bboxes = data_bag['boxes']
+            tracked_boxes = data_bag['boxes']
         else:
             check, current_image = vid.read()
         # --------------------------------------------------------------------------------------------------------------#
 
         # -- Detect skeletons
         humans = skeleton_detector.detect(current_image)
-        for human in humans:
-            print(human)
+        inner_boxes = skeleton_detector.draw(current_image, humans)
 
         skeletons, scale_h = skeleton_detector.humans_to_skels_list(humans)
-        for skeleton in skeletons:
-            print(skeleton)
         skeletons = remove_skeletons_with_few_joints(skeletons)
 
         # -- Track people
         dict_id2skeleton = multiperson_tracker.track(skeletons)  # int id -> np.array() skeleton
-        for id, skeleton in dict_id2skeleton.items():
-            print(id)
-            print(skeleton)
 
         # -- Recognize action of each person
         dict_id2label = None
@@ -161,11 +155,12 @@ if __name__ == "__main__":
 
         # -- Draw
         if CONNECTION_ENABLE:
-            draw_track_boxes(current_image, tracked_bboxes)
+            draw_track_boxes(current_image, tracked_boxes)
             #floor_plan = draw_human_path(floor_plan, tracked_bboxes)
 
 
-        skeleton_detector.draw(current_image, humans)
+
+        draw_skel_boxes(current_image, boxes)
         #current_image = draw_human_skeleton(current_image, humans, dict_id2skeleton, dict_id2label, scale_h, skeleton_detector)
 
         cv2.imshow('CCTV Stream', current_image)

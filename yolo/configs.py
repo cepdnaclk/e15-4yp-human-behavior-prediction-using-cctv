@@ -1,11 +1,11 @@
 # Connection options
 HOST                        = '127.0.0.1'
 PORT                        = 8083
-CONNECTION_ENABLE           = False
+CONNECTION_ENABLE           = True
 
 # Source Settings
 SRC_VIDEO_SAMPLE_INTERVAL = 1
-SRC_VIDEO_PATH = "assets/TwoHuman.mp4"
+SRC_VIDEO_PATH = 0 #"assets/TwoHuman.mp4"
 SRC_DEEPSORT_MODEL_PATH = 'model_data/mars-small128/mars-small128.pb'
 
 # YOLO options

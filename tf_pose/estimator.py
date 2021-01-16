@@ -411,27 +411,33 @@ class TfPoseEstimator:
         if imgcopy:
             npimg = np.copy(npimg)
         image_h, image_w = npimg.shape[:2]
-        centers = {}
+        bboxes = []
         for human in humans:
             # draw point
+            xs, ys, centers = [], [], {}
             for i in range(common.CocoPart.Background.value):
                 if i not in human.body_parts.keys():
                     continue
 
                 body_part = human.body_parts[i]
-                center = (int(body_part.x * image_w + 0.5), int(body_part.y * image_h + 0.5))
-                centers[i] = center
-                cv2.circle(npimg, center, 3, common.CocoColors[i], thickness=3, lineType=8, shift=0)
+                center_x = int(body_part.x * image_w + 0.5)
+                center_y = int(body_part.y * image_h + 0.5)
+                centers[i] = (center_x, center_y)
+                cv2.circle(npimg, (center_x, center_y), 3, common.CocoColors[i], thickness=3, lineType=8, shift=0)
+
+                if i not in [3,4,6,7]:
+                    xs.append(center_x)
+                    ys.append(center_y)
 
             # draw line
             for pair_order, pair in enumerate(common.CocoPairsRender):
                 if pair[0] not in human.body_parts.keys() or pair[1] not in human.body_parts.keys():
                     continue
 
-                # npimg = cv2.line(npimg, centers[pair[0]], centers[pair[1]], common.CocoColors[pair_order], 3)
                 cv2.line(npimg, centers[pair[0]], centers[pair[1]], common.CocoColors[pair_order], 3)
 
-        #return bboxes
+            bboxes.append([min(xs), min(ys), max(xs), max(ys)])
+        return bboxes
 
     def _get_scaled_img(self, npimg, scale):
         get_base_scale = lambda s, w, h: max(self.target_size[0] / float(h), self.target_size[1] / float(w)) * s

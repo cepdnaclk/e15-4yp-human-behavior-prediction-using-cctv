@@ -41,20 +41,11 @@ def _set_config():
     config.gpu_options.per_process_gpu_memory_fraction=MAX_FRACTION_OF_GPU_TO_USE
     return config
 
-'''
-def _get_input_img_size_from_string(image_size_str):
-    #If input image_size_str is "123x456", then output (123, 456)
-    width, height = map(int, image_size_str.split('x'))
-    if width % 16 != 0 or height % 16 != 0:
-        raise Exception('Width and height should be multiples of 16. w=%d, h=%d' % (width, height))
-    return int(width), int(height)
-'''
-
 # -- Main class
 class SkeletonDetector(object):
     # This class is mainly copied from https://github.com/ildoonet/tf-pose-estimation
 
-    def __init__(self, model="cmu", image_size='432x368'):
+    def __init__(self, model="cmu", image_size=[432, 368]):
         ''' Arguments:
             model {str}: "cmu" or "mobilenet_thin".
             image_size {str}: resize input images before they are processed. 
@@ -108,16 +99,8 @@ class SkeletonDetector(object):
         return humans
     
     def draw(self, img_disp, humans):
-        ''' Draw human skeleton on img_disp inplace.
-        Argument:
-            img_disp {RGB image}
-            humans {a class returned by self.detect}
-        '''
-        #box =
-        TfPoseEstimator.draw_humans(img_disp, humans, imgcopy=False)
-        if IS_DRAW_FPS:
-            cv2.putText(img_disp, "fps = {:.1f}".format( (1.0 / (time.time() - self._prev_t) )), (10, 30),  cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-        self._prev_t = time.time()
+        boxes = TfPoseEstimator.draw_humans(img_disp, humans, imgcopy=False)
+        return boxes
 
 
     def humans_to_skels_list(self, humans, scale_h = None): 
@@ -145,35 +128,3 @@ class SkeletonDetector(object):
                 skeleton[2*idx+1]=body_part.y * scale_h
             skeletons.append(skeleton)
         return skeletons, scale_h
-    
-
-def test_openpose_on_webcamera():
-    
-    # -- Initialize web camera reader
-    from utils.lib_images_io import ReadFromWebcam, ImageDisplayer
-    webcam_reader = ReadFromWebcam(max_framerate=10)
-    img_displayer = ImageDisplayer()
-    
-    # -- Initialize openpose detector    
-    skeleton_detector = SkeletonDetector("mobilenet_thin", "432x368")
-
-    # -- Read image and detect
-    import itertools
-    for i in itertools.count():
-        img = webcam_reader.read_image()
-        if img is None:
-            break
-        print(f"Read {i}th image...")
-
-        # Detect
-        humans = skeleton_detector.detect(img)
-        
-        # Draw
-        img_disp = img.copy()
-        skeleton_detector.draw(img_disp, humans)
-        img_displayer.display(img_disp)
-        
-    print("Program ends")
-
-if __name__ == "__main__":
-    test_openpose_on_webcamera()
