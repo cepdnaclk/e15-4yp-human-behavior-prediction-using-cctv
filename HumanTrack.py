@@ -4,8 +4,8 @@ import cv2
 import numpy as np
 
 import tensorflow as tf
-from yolov3.utils import Load_Yolo_model, image_preprocess, postprocess_boxes, nms, draw_bbox, draw_path, read_class_names
-from yolov3.configs import *
+from yolo.utils import Load_Yolo_model, image_preprocess, postprocess_boxes, nms, read_class_names
+from yolo.configs import *
 import time
 
 from deep_sort import nn_matching
@@ -18,19 +18,15 @@ import struct
 import socket
 
 ################################################## Settings ############################################################
-
-HOST = '127.0.0.1'
-PORT = 8083
-CONNECTION_ENABLE = True
 SRC_VIDEO_SAMPLE_INTERVAL = 1
 SRC_VIDEO_PATH = 0 #"assets/TwoHuman.mp4"
-SRC_FLOOR_PLAN = "assets/floor_plan.png"
 SRC_DEEPSORT_MODEL_PATH = 'model_data/mars-small128/mars-small128.pb'
 
 ########################################################################################################################
 
-def Object_tracking(input_size=416, show=False, CLASSES=YOLO_COCO_CLASSES, score_threshold=0.3, iou_threshold=0.45, rectangle_colors='', Track_only=[]):
-    # Definition of the parameters
+if __name__ == "__main__":
+    iou_threshold = 0.1 #0.45
+    score_threshold = 0.3
     max_cosine_distance = 0.7
     nn_budget = None
 
@@ -48,11 +44,7 @@ def Object_tracking(input_size=416, show=False, CLASSES=YOLO_COCO_CLASSES, score
         clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         clientsocket.connect((HOST, PORT))
 
-    NUM_CLASS = read_class_names(CLASSES)
-    key_list = list(NUM_CLASS.keys())
-    val_list = list(NUM_CLASS.values())
-
-    floor_plan = cv2.imread(SRC_FLOOR_PLAN)
+    NUM_CLASS = read_class_names(YOLO_COCO_CLASSES)
 
     while True:
         check, frame = vid.read()
@@ -63,20 +55,20 @@ def Object_tracking(input_size=416, show=False, CLASSES=YOLO_COCO_CLASSES, score
 
         tic = time.time()
         original_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        image_data = image_preprocess(np.copy(original_frame), [input_size, input_size])
+        image_data = image_preprocess(np.copy(original_frame), [YOLO_INPUT_SIZE, YOLO_INPUT_SIZE])
         image_data = image_data[np.newaxis, ...].astype(np.float32)
 
         pred_bbox = yolo.predict(image_data)
         pred_bbox = [tf.reshape(x, (-1, tf.shape(x)[-1])) for x in pred_bbox]
         pred_bbox = tf.concat(pred_bbox, axis=0)
 
-        bboxes = postprocess_boxes(pred_bbox, original_frame, input_size, score_threshold)
+        bboxes = postprocess_boxes(pred_bbox, original_frame, YOLO_INPUT_SIZE, score_threshold)
         bboxes = nms(bboxes, iou_threshold, method='nms')
 
         # extract bboxes to boxes (x, y, width, height), scores and names
         boxes, scores, names = [], [], []
         for bbox in bboxes:
-            if len(Track_only) != 0 and NUM_CLASS[int(bbox[5])] in Track_only or len(Track_only) == 0:
+            if NUM_CLASS[int(bbox[5])] in ["person"]:
                 boxes.append([bbox[0].astype(int), bbox[1].astype(int), bbox[2].astype(int) - bbox[0].astype(int),bbox[3].astype(int) - bbox[1].astype(int)])
                 scores.append(bbox[4])
                 names.append(NUM_CLASS[int(bbox[5])])
@@ -105,8 +97,6 @@ def Object_tracking(input_size=416, show=False, CLASSES=YOLO_COCO_CLASSES, score
         data_bag['frame'] = frame
         data_bag['boxes'] = tracked_bboxes
 
-        #frame = draw_bbox(frame, tracked_bboxes, CLASSES=CLASSES, tracking=True)
-        #floor_plan = draw_path(floor_plan, tracked_bboxes, human_paths)
         print(tracked_bboxes)
         if CONNECTION_ENABLE:
             data = pickle.dumps(data_bag)
@@ -116,6 +106,6 @@ def Object_tracking(input_size=416, show=False, CLASSES=YOLO_COCO_CLASSES, score
         print(f'FPS: {1 / (toc - tic)}')
 
 
-Object_tracking(input_size=YOLO_INPUT_SIZE, show=True, iou_threshold=0.1, rectangle_colors=(255, 0, 0),Track_only=["person"])
+
 
 
