@@ -66,22 +66,12 @@ def draw_human_skeleton(frame, humans):
 
             cv2.line(frame, centers[pair[0]], centers[pair[1]], CocoColors[pair_order], 3)
 
-def draw_human_path(floor_plan, bboxes):
-    num_ids = 10
-    hsv_tuples = [(1.0 * x / num_ids, 1., 1.) for x in range(num_ids)]
-    colors = list(map(lambda x: colorsys.hsv_to_rgb(*x), hsv_tuples))
-    colors = list(map(lambda x: (int(x[0] * 255), int(x[1] * 255), int(x[2] * 255)), colors))
-
-    for i, bbox in enumerate(bboxes):
-        cur_point_conv = cv2.perspectiveTransform(bbox[6], h_mat)
-        if cur_point_conv is not None:
-            cur_point = cur_point_conv[0][0]
-            track_id = int(bbox[4])
-            if pre_point is not None:
-                # pre_point_conv = cv2.perspectiveTransform(pre_point, h_mat)
-                # pre_point = pre_point_conv[0][0]
-                # print(f'{track_id}----> ({pre_point[0]} :: {pre_point[1]}) ({cur_point[0]} :: {cur_point[1]})')
-                cv2.circle(floor_plan, (cur_point[0], cur_point[1]), radius=0, color=(0, 0, 255), thickness=-1)
-                # cv2.line(floor_plan, (pre_point[0], pre_point[1]), (cur_point[0], cur_point[1]), colors[track_id], 5)
+def draw_human_path(floor_plan, tracked_bboxes):
+    for id, x1, y1, x2, y2 in tracked_bboxes:
+        real_point = np.array([np.array([[x1+ (x2-x1)/2, y2]], dtype='float32')])
+        trans_point = cv2.perspectiveTransform(real_point, h_mat)
+        if trans_point is not None:
+            cur_point = trans_point[0][0]
+            floor_plan = cv2.circle(floor_plan, (cur_point[0], cur_point[1]), radius=2, color= colors[id], thickness=-1)
 
     return floor_plan

@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     NUM_CLASS = read_class_names(YOLO_COCO_CLASSES)
 
-    while True:
+    while vid.isOpened():
         check, frame = vid.read()
         key = cv2.waitKey(1)
         if not check or key == 'q':
@@ -47,6 +47,11 @@ if __name__ == "__main__":
             break
 
         tic = time.time()
+
+        frame_h = int(frame.shape[0] * 0.8)
+        frame_w = int(frame.shape[1] * 0.8)
+        frame = cv2.resize(frame, (frame_w, frame_h), interpolation=cv2.INTER_AREA)
+
         original_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image_data = image_preprocess(np.copy(original_frame), [YOLO_INPUT_SIZE, YOLO_INPUT_SIZE])
         image_data = image_data[np.newaxis, ...].astype(np.float32)
@@ -86,25 +91,21 @@ if __name__ == "__main__":
             #foot_coor = np.array([np.array([[bbox[0] + (bbox[2] - bbox[0]) / 2, bbox[3]]], dtype='float32')])
             tracked_bboxes.append([track.track_id]+[round(i) for i in track.to_tlbr().tolist()])
 
-        data_bag = {}
-        data_bag['frame'] = frame
-        data_bag['boxes'] = tracked_bboxes
-
-        #print(tracked_bboxes)
-        if CONNECTION_ENABLE:
-            data = pickle.dumps(data_bag)
-            clientsocket.sendall(struct.pack("L", len(data)) + data)
-
         toc = time.time()
         print(f'FPS: {1 / (toc - tic)}')
 
-'''
-        cv2.imshow('Tracking', frame)
-        key = cv2.waitKey(1)
-        if key == 'q':
-            break
+        if CONNECTION_ENABLE:
+            data_bag = {}
+            data_bag['frame'] = frame
+            data_bag['boxes'] = tracked_bboxes
+            data = pickle.dumps(data_bag)
+            clientsocket.sendall(struct.pack("L", len(data)) + data)
+
+        else:
+            cv2.imshow('Tracking', frame)
+            key = cv2.waitKey(1)
+            if key == 'q':
+                break
 
     cv2.destroyAllWindows()
-
-'''
 
