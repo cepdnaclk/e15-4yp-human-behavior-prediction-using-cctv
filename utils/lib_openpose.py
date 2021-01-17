@@ -11,10 +11,9 @@ import cv2
 
 # openpose packages
 sys.path.append(ROOT + "src/githubs/tf-pose-estimation")
-#from tf_pose.networks import get_graph_path, model_wh
+from tf_pose.networks import get_graph_path, model_wh
 from tf_pose.estimator import TfPoseEstimator
 from tf_pose import common
-
 
 # -- Settings
 MAX_FRACTION_OF_GPU_TO_USE = 0.4
@@ -54,22 +53,21 @@ class SkeletonDetector(object):
         self._prev_t = time.time()
         self._cnt_image = 0
 
-
     def detect(self, image):
         ''' Detect human skeleton from image.
         Arguments:
             image: RGB image with arbitrary size. It will be resized to (self._w, self._h).
         Returns:
-            humans {list of class Human}: 
-                `class Human` is defined in 
+            humans {list of class Human}:
+                `class Human` is defined in
                 "src/githubs/tf-pose-estimation/tf_pose/estimator.py"
-                
+
                 The variable `humans` is returned by the function
                 `TfPoseEstimator.inference` which is defined in
                 `src/githubs/tf-pose-estimation/tf_pose/estimator.py`.
 
-                I've written a function `self.humans_to_skels_list` to 
-                extract the skeleton from this `class Human`. 
+                I've written a function `self.humans_to_skels_list` to
+                extract the skeleton from this `class Human`.
         '''
 
         self._cnt_image += 1
@@ -77,12 +75,18 @@ class SkeletonDetector(object):
             self._image_h = image.shape[0]
             self._image_w = image.shape[1]
             self._scale_h = 1.0 * self._image_h / self._image_w
-        t = time.time()
 
         # Do inference
         humans = self._tf_pose_estimator.inference(image, resize_to_default=(self._w > 0 and self._h > 0), upsample_size=self._resize_out_ratio)
-
         return humans
+
+    def draw(self, img_disp, humans):
+        ''' Draw human skeleton on img_disp inplace.
+        Argument:
+            img_disp {RGB image}
+            humans {a class returned by self.detect}
+        '''
+        TfPoseEstimator.draw_humans(img_disp, humans, imgcopy=False)
 
     def humans_to_skels_list(self, humans, scale_h = None): 
         ''' Get skeleton data of (x, y * scale_h) from humans.

@@ -1,7 +1,4 @@
-
 import numpy as np
-import cv2
-import math
 import functools
 
 
@@ -69,8 +66,7 @@ class Tracker(object):
                                 self._max_humans - len(good_matches))
         for i in range(num_humans_to_add):
             self._cnt_humans += 1
-            self._dict_id2skeleton[self._cnt_humans] = np.array(
-                curr_skels[unmatched_idx[i]])
+            self._dict_id2skeleton[self._cnt_humans] = np.array(curr_skels[unmatched_idx[i]])
 
         return self._dict_id2skeleton
 

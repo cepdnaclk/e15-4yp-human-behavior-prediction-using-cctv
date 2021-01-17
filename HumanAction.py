@@ -15,6 +15,8 @@ from utils.lib_draw import draw_track_boxes, draw_skel_boxes, draw_human_path, d
 ########################################################################################################################
 
 from yolo.configs import *
+from tf_pose.common import CocoPart
+from tf_pose.estimator import *
 ################################################## Settings ############################################################
 ACTION_MODEL_PATH    = 'model_data/action_classifier/model.pickle'
 ACTION_CLASSES           = np.array(['stand', 'walk', 'walk', 'stand', 'sit', 'walk', 'stand', 'stand', 'stand'])
@@ -88,12 +90,28 @@ def remove_skeletons_with_few_joints(skeletons):
             good_skeletons.append(skeleton)
     return good_skeletons
 
-def match_skeleton_trackid(tracked_boxes, inner_boxes):
-    track_ids = []
-    print(tracked_boxes)
-    print(inner_boxes)
-    for t_box in tracked_boxes:
-        for in_box in inner_boxes:
+def track_skeleton(humans, tracked_boxes):
+    tracked_skel = {}
+    scale_h = 1.0 * frame_h / frame_w
+    for human in humans:
+        # draw point
+        xs, ys = [], []
+        skeleton = [0] * (18 * 2)
+        for i in range(CocoPart.Background.value): #Value 18
+            if i not in human.body_parts.keys():
+                continue
+
+            body_part = human.body_parts[i]
+            idx = body_part.part_idx
+            skeleton[2 * idx] = body_part.x
+            skeleton[2 * idx + 1] = body_part.y * scale_h
+
+            if i not in [3, 4, 6, 7]: # Ignore Hands
+                xs.append(int(body_part.x * frame_w + 0.5))
+                ys.append(int(body_part.y * frame_h + 0.5))
+
+        in_box = [min(xs), min(ys), max(xs), max(ys)]
+        for t_box in tracked_boxes:
             in_box_area = abs(in_box[2] - in_box[0]) * abs(in_box[1] - in_box[3])
             x_dist = (min(t_box[3], in_box[2]) - max(t_box[1], in_box[0]))
             y_dist = (min(t_box[4], in_box[3]) - max(t_box[2], in_box[1]))
@@ -102,37 +120,11 @@ def match_skeleton_trackid(tracked_boxes, inner_boxes):
             if x_dist > 0 and y_dist > 0:
                 overlap_area = x_dist * y_dist
 
-            print(overlap_area/in_box_area)
-            if overlap_area/in_box_area >= 0.8:
-                track_ids.append(t_box[0])
+            if overlap_area / in_box_area >= 0.9:
+                tracked_skel[t_box[0]] = skeleton
                 break
 
-    return track_ids
-
-
-def track_skeleton(tracked_boxes, humans):
-    if imgcopy:
-        npimg = np.copy(npimg)
-    image_h, image_w = npimg.shape[:2]
-    bboxes = []
-    for human in humans:
-        # draw point
-        xs, ys, centers = [], [], {}
-        for i in range(common.CocoPart.Background.value):
-            if i not in human.body_parts.keys():
-                continue
-
-            body_part = human.body_parts[i]
-            center_x = int(body_part.x * image_w + 0.5)
-            center_y = int(body_part.y * image_h + 0.5)
-            centers[i] = (center_x, center_y)
-
-            if i not in [3, 4, 6, 7]:
-                xs.append(center_x)
-                ys.append(center_y)
-
-        bboxes.append([min(xs), min(ys), max(xs), max(ys)])
-    return bboxes
+    return tracked_skel
 
 ########################################################################################################################
 if __name__ == "__main__":
@@ -156,7 +148,6 @@ if __name__ == "__main__":
 
     # -- Detector, tracker, classifier
     skeleton_detector = SkeletonDetector(OPENPOSE_MODEL_PATH, OPENPOSE_IMG_SIZE)
-    multiperson_tracker = Tracker()
     multiperson_classifier = MultiPersonClassifier(ACTION_MODEL_PATH, ACTION_CLASSES)
 
     # -- Read images and process
@@ -179,43 +170,35 @@ if __name__ == "__main__":
             frame_data = data[:msg_size]
             data = data[msg_size:]
             data_bag = pickle.loads(frame_data)
-            current_image = data_bag['frame']
+            current_frame = data_bag['frame']
             tracked_boxes = data_bag['boxes']
         else:
-            check, current_image = vid.read()
+            check, current_frame = vid.read()
         # --------------------------------------------------------------------------------------------------------------#
 
-        # -- Detect skeletons
-        humans = skeleton_detector.detect(current_image)
+        frame_h, frame_w = current_frame.shape[:2]
+        scale_h = 1.0 * frame_h / frame_w
+
+        # -- Detect Skeletons
+        humans = skeleton_detector.detect(current_frame)
 
         # -- Track Skeletons
-        #tracks = match_skeleton_trackid(tracked_boxes, inner_boxes) # start from here!
-        id2skeleton = track_skeleton(humans, tracked_boxes)
+        dict_id2skeleton = track_skeleton(humans, tracked_boxes)
+        #skeletons = remove_skeletons_with_few_joints(skeletons)
 
-        skeletons, scale_h = skeleton_detector.humans_to_skels_list(humans)
-        skeletons = remove_skeletons_with_few_joints(skeletons)
-
-        # -- Track people
-        dict_id2skeleton = multiperson_tracker.track(skeletons)  # int id -> np.array() skeleton
-        print(type(dict_id2skeleton))
-
-        # -- Recognize action of each person
-        dict_id2label = None
-        if len(dict_id2skeleton):
-            dict_id2label = multiperson_classifier.classify(dict_id2skeleton)
+        # -- Recognize Action
+        id2label = multiperson_classifier.classify(dict_id2skeleton)
+        print(id2label)
 
         # -- Draw
         if CONNECTION_ENABLE:
-            draw_track_boxes(current_image, tracked_boxes)
+            draw_track_boxes(current_frame, tracked_boxes, id2label)
             #floor_plan = draw_human_path(floor_plan, tracked_bboxes)
 
 
+        draw_human_skeleton(current_frame, humans)
 
-        #draw_skel_boxes(current_image, inner_boxes)
-        draw_human_skeleton(current_image, humans)
-        #current_image = draw_human_skeleton(current_image, humans, dict_id2skeleton, dict_id2label, scale_h, skeleton_detector)
-
-        cv2.imshow('CCTV Stream', current_image)
+        cv2.imshow('CCTV Stream', current_frame)
         cv2.imshow('FloorPlan', floor_plan)
         key = cv2.waitKey(1)
         if key == 'q':

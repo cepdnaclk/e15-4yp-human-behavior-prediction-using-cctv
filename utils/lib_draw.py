@@ -21,21 +21,23 @@ box_thick = 2
 font_think = 1
 font_scale = 0.6
 
-def draw_track_boxes(image, tracked_bboxes):
+def draw_track_boxes(image, tracked_bboxes, id2label):
     for id, x1, y1, x2, y2 in tracked_bboxes:
 
         cv2.rectangle(image, (x1, y1), (x2, y2), colors[id] , 2)
 
-        text = f'Tag{id}: Walk'
+        if id in id2label:
+            text = f'Tag{id}: {id2label[id]}'
+        else:
+            text = f'Tag{id}: Processing...'
+
         (text_width, text_height) , baseline = cv2.getTextSize(text, cv2.FONT_HERSHEY_COMPLEX_SMALL, font_scale, font_think)
         cv2.rectangle(image, (x1, y1), (x1 + text_width, y1 - text_height - baseline), colors[id], thickness=cv2.FILLED)
         cv2.putText(image, text, (x1, y1 - 4), cv2.FONT_HERSHEY_COMPLEX_SMALL, font_scale, [0, 0, 0], font_think, lineType=cv2.LINE_AA)
 
-
 def draw_skel_boxes(image, tracked_bboxes):
     for x1, y1, x2, y2 in tracked_bboxes:
         cv2.rectangle(image, (x1, y1), (x2, y2), [255,0,0] , 2)
-
 
 def draw_human_skeleton(frame, humans):
     image_h, image_w = frame.shape[:2]
@@ -52,6 +54,11 @@ def draw_human_skeleton(frame, humans):
             centers[i] = (center_x, center_y)
             cv2.circle(frame, (center_x, center_y), 3, CocoColors[i], thickness=3, lineType=8, shift=0)
 
+            #if i not in [3, 4, 6, 7]:
+                #xs.append(center_x)
+                #ys.append(center_y)
+
+            #bboxes.append([min(xs), min(ys), max(xs), max(ys)])
         # draw line
         for pair_order, pair in enumerate(CocoPairsRender):
             if pair[0] not in human.body_parts.keys() or pair[1] not in human.body_parts.keys():

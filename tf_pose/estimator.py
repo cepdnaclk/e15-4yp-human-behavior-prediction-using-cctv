@@ -569,7 +569,6 @@ class TfPoseEstimator:
         #logger.debug('estimate time=%.5f' % (time.time() - t))
         return humans
 
-
 if __name__ == '__main__':
     import pickle
 
