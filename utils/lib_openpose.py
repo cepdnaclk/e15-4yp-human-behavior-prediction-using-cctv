@@ -20,17 +20,6 @@ from tf_pose import common
 MAX_FRACTION_OF_GPU_TO_USE = 0.4
 IS_DRAW_FPS = True
 
-# -- Helper functions
-def _set_logger():
-    logger = logging.getLogger('TfPoseEstimator')
-    logger.setLevel(logging.DEBUG)
-    logging_stream_handler = logging.StreamHandler()
-    logging_stream_handler.setLevel(logging.DEBUG)
-    logging_formatter = logging.Formatter('[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s')
-    logging_stream_handler.setFormatter(logging_formatter)
-    logger.addHandler(logging_stream_handler)
-    return logger
-
 def _set_config():
     ''' Set the max GPU memory to use '''
     # For tf 1.13.1, The following setting is needed
@@ -64,10 +53,7 @@ class SkeletonDetector(object):
         self._tf_pose_estimator = TfPoseEstimator(self._model, target_size=(self._w, self._h),tf_config=self._config)
         self._prev_t = time.time()
         self._cnt_image = 0
-        
-        # -- Set logger
-        self._logger = _set_logger()
-        
+
 
     def detect(self, image):
         ''' Detect human skeleton from image.
@@ -97,11 +83,6 @@ class SkeletonDetector(object):
         humans = self._tf_pose_estimator.inference(image, resize_to_default=(self._w > 0 and self._h > 0), upsample_size=self._resize_out_ratio)
 
         return humans
-    
-    def draw(self, img_disp, humans):
-        boxes = TfPoseEstimator.draw_humans(img_disp, humans, imgcopy=False)
-        return boxes
-
 
     def humans_to_skels_list(self, humans, scale_h = None): 
         ''' Get skeleton data of (x, y * scale_h) from humans.
@@ -124,7 +105,7 @@ class SkeletonDetector(object):
             skeleton = [NaN]*(18*2)
             for i, body_part in human.body_parts.items(): # iterate dict
                 idx = body_part.part_idx
-                skeleton[2*idx]=body_part.x
-                skeleton[2*idx+1]=body_part.y * scale_h
+                skeleton[2*idx] = body_part.x
+                skeleton[2*idx+1] = body_part.y * scale_h
             skeletons.append(skeleton)
         return skeletons, scale_h

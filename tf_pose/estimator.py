@@ -341,10 +341,8 @@ class TfPoseEstimator:
         self.tensor_heatMat = self.tensor_output[:, :, :, :19]
         self.tensor_pafMat = self.tensor_output[:, :, :, 19:]
         self.upsample_size = tf.compat.v1.placeholder(dtype=tf.int32, shape=(2,), name='upsample_size')
-        self.tensor_heatMat_up = tf.image.resize(self.tensor_output[:, :, :, :19], self.upsample_size,
-                                                      method=tf.image.ResizeMethod.AREA, name='upsample_heatmat')
-        self.tensor_pafMat_up = tf.image.resize(self.tensor_output[:, :, :, 19:], self.upsample_size,
-                                                     method=tf.image.ResizeMethod.AREA, name='upsample_pafmat')
+        self.tensor_heatMat_up = tf.image.resize(self.tensor_output[:, :, :, :19], self.upsample_size, method=tf.image.ResizeMethod.AREA, name='upsample_heatmat')
+        self.tensor_pafMat_up = tf.image.resize(self.tensor_output[:, :, :, 19:], self.upsample_size, method=tf.image.ResizeMethod.AREA, name='upsample_pafmat')
         if trt_bool is True:
             smoother = Smoother({'data': self.tensor_heatMat_up}, 25, 3.0, 19)
         else:
@@ -352,8 +350,7 @@ class TfPoseEstimator:
         gaussian_heatMat = smoother.get_output()
 
         max_pooled_in_tensor = tf.nn.pool(input=gaussian_heatMat, window_shape=(3, 3), pooling_type='MAX', padding='SAME')
-        self.tensor_peaks = tf.compat.v1.where(tf.equal(gaussian_heatMat, max_pooled_in_tensor), gaussian_heatMat,
-                                     tf.zeros_like(gaussian_heatMat))
+        self.tensor_peaks = tf.compat.v1.where(tf.equal(gaussian_heatMat, max_pooled_in_tensor), gaussian_heatMat, tf.zeros_like(gaussian_heatMat))
 
         self.heatMat = self.pafMat = None
 

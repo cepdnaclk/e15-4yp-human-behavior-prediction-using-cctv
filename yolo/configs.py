@@ -1,7 +1,7 @@
 # Connection options
 HOST                        = '127.0.0.1'
 PORT                        = 8083
-CONNECTION_ENABLE           = True
+CONNECTION_ENABLE           = False
 
 # Source Settings
 SRC_VIDEO_SAMPLE_INTERVAL = 1

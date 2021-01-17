@@ -108,6 +108,32 @@ def match_skeleton_trackid(tracked_boxes, inner_boxes):
                 break
 
     return track_ids
+
+
+def track_skeleton(tracked_boxes, humans):
+    if imgcopy:
+        npimg = np.copy(npimg)
+    image_h, image_w = npimg.shape[:2]
+    bboxes = []
+    for human in humans:
+        # draw point
+        xs, ys, centers = [], [], {}
+        for i in range(common.CocoPart.Background.value):
+            if i not in human.body_parts.keys():
+                continue
+
+            body_part = human.body_parts[i]
+            center_x = int(body_part.x * image_w + 0.5)
+            center_y = int(body_part.y * image_h + 0.5)
+            centers[i] = (center_x, center_y)
+
+            if i not in [3, 4, 6, 7]:
+                xs.append(center_x)
+                ys.append(center_y)
+
+        bboxes.append([min(xs), min(ys), max(xs), max(ys)])
+    return bboxes
+
 ########################################################################################################################
 if __name__ == "__main__":
 
@@ -161,15 +187,17 @@ if __name__ == "__main__":
 
         # -- Detect skeletons
         humans = skeleton_detector.detect(current_image)
-        inner_boxes = skeleton_detector.draw(current_image, humans)
-        tracks = match_skeleton_trackid(tracked_boxes, inner_boxes)
-        print(f'trackes{tracks}')
+
+        # -- Track Skeletons
+        #tracks = match_skeleton_trackid(tracked_boxes, inner_boxes) # start from here!
+        id2skeleton = track_skeleton(humans, tracked_boxes)
+
         skeletons, scale_h = skeleton_detector.humans_to_skels_list(humans)
-        print(f'Skel len{len(skeletons)}')
         skeletons = remove_skeletons_with_few_joints(skeletons)
 
         # -- Track people
         dict_id2skeleton = multiperson_tracker.track(skeletons)  # int id -> np.array() skeleton
+        print(type(dict_id2skeleton))
 
         # -- Recognize action of each person
         dict_id2label = None
@@ -183,7 +211,8 @@ if __name__ == "__main__":
 
 
 
-        draw_skel_boxes(current_image, inner_boxes)
+        #draw_skel_boxes(current_image, inner_boxes)
+        draw_human_skeleton(current_image, humans)
         #current_image = draw_human_skeleton(current_image, humans, dict_id2skeleton, dict_id2label, scale_h, skeleton_detector)
 
         cv2.imshow('CCTV Stream', current_image)
