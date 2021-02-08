@@ -34,7 +34,7 @@
   <h3 align="center">Human Task Prediction</h3>
 
   <p align="center">
-    Hello Isuru and Ruchika
+    This Readme File is still under-constructing
     <br />
     <a href="https://github.com/othneildrew/Best-README-Template"><strong>Explore the docs »</strong></a>
     <br />
