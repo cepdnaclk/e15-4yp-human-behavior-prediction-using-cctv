@@ -9,9 +9,9 @@ import argparse
 import json, re
 from tqdm import tqdm
 
-from tf_pose.common import read_imgfile
-from tf_pose.estimator import TfPoseEstimator
-from tf_pose.networks import model_wh, get_graph_path
+from BehaviorExtraction.tf_pose.common import read_imgfile
+from BehaviorExtraction.tf_pose.estimator import TfPoseEstimator
+from BehaviorExtraction.tf_pose.networks import model_wh, get_graph_path
 
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval

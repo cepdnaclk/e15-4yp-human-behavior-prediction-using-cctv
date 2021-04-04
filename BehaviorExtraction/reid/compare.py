@@ -106,7 +106,7 @@ if __name__ == '__main__':
     name = ['Aunty', 'Risith', 'Asith', 'Madaya', 'YellowMan', 'BlueMan']
     for p, i, s in zip(paths, indexes, scores):
         if s > score_threshold:
-            print(f'{p} -> ({s}) {name[person_ids[i]]}')
+            print(f'{p} -> ({s}) {}')
         else:
             print(f'{p} -> ({s}) Unknown')
 

@@ -5,8 +5,15 @@ CONNECTION_ENABLE           = True
 
 # Source Settings
 SRC_VIDEO_SAMPLE_INTERVAL = 1
-SRC_VIDEO_PATH = "assets/TwoHuman.mp4"
+SRC_VIDEO_PATH = 0#"./database/HumanVideo.mp4"
 SRC_DEEPSORT_MODEL_PATH = 'model_data/mars-small128/mars-small128.pb'
+
+# REID Options
+
+
+
+
+
 
 # YOLO options
 YOLO_TYPE                   = "yolov3" # yolov4 or yolo
@@ -23,10 +30,12 @@ YOLO_ANCHOR_PER_SCALE       = 3
 YOLO_MAX_BBOX_PER_SCALE     = 100
 YOLO_MAX_TRACKING           = 10
 YOLO_INPUT_SIZE             = 320  #416
+
 if YOLO_TYPE                == "yolov4":
     YOLO_ANCHORS            = [[[12,  16], [19,   36], [40,   28]],
                                [[36,  75], [76,   55], [72,  146]],
                                [[142,110], [192, 243], [459, 401]]]
+
 if YOLO_TYPE                == "yolov3":
     YOLO_ANCHORS            = [[[10,  13], [16,   30], [33,   23]],
                                [[30,  61], [62,   45], [59,  119]],
@@ -53,17 +62,8 @@ TRAIN_WARMUP_EPOCHS         = 2
 TRAIN_EPOCHS                = 100
 
 
-# TEST options
-TEST_ANNOT_PATH             = "mnist/mnist_test.txt"
-TEST_BATCH_SIZE             = 4
-TEST_INPUT_SIZE             = 416
-TEST_DATA_AUG               = False
-TEST_DECTECTED_IMAGE_PATH   = ""
-TEST_SCORE_THRESHOLD        = 0.3
-TEST_IOU_THRESHOLD          = 0.45
-
-
 #YOLOv3-TINY and YOLOv4-TINY WORKAROUND
+
 if TRAIN_YOLO_TINY:
     YOLO_STRIDES            = [16, 32, 64]    
     YOLO_ANCHORS            = [[[10,  14], [23,   27], [37,   58]],

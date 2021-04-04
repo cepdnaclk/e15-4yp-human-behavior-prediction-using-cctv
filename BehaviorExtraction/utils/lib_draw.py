@@ -4,7 +4,7 @@ import colorsys
 import numpy as np
 import math
 from yolo.configs import *
-from tf_pose.common import CocoPart, CocoColors, CocoPairsRender
+from BehaviorExtraction.tf_pose.common import CocoPart, CocoColors, CocoPairsRender
 
 pts_src = np.array([[140, 678], [336, 259], [385, 147], [736, 80], [916, 35], [1113, 571]])
 pts_dst = np.array([[0, 335], [0, 104], [0, 0], [289, 0], [406, 0], [335, 406]])
@@ -27,7 +27,10 @@ def draw_track_boxes(image, tracked_bboxes, id2label):
         cv2.rectangle(image, (x1, y1), (x2, y2), colors[id] , 2)
 
         if id in id2label:
-            text = f'Tag{id}: {id2label[id]}'
+            if id2label[id] == '':
+                text = f'Tag{id}: Processing...'
+            else:
+                text = f'Tag{id}: {id2label[id]}'
         else:
             text = f'Tag{id}: Processing...'
 
@@ -67,11 +70,13 @@ def draw_human_skeleton(frame, humans):
             cv2.line(frame, centers[pair[0]], centers[pair[1]], CocoColors[pair_order], 3)
 
 def draw_human_path(floor_plan, tracked_bboxes):
+    locations = {}
     for id, x1, y1, x2, y2 in tracked_bboxes:
         real_point = np.array([np.array([[x1+ (x2-x1)/2, y2]], dtype='float32')])
         trans_point = cv2.perspectiveTransform(real_point, h_mat)
         if trans_point is not None:
             cur_point = trans_point[0][0]
+            locations[id] = cur_point
             floor_plan = cv2.circle(floor_plan, (cur_point[0], cur_point[1]), radius=2, color= colors[id], thickness=-1)
 
-    return floor_plan
+    return floor_plan, locations

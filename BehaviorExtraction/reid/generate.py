@@ -12,9 +12,9 @@ import time
 ##############################################################################################
 # Options
 name = 'ft_ResNet50'
-data_path = './database/2021-02-05'
-model_path = './model/ft_ResNet50/net_last.pth'
-output_path = './database/2021-02-05/features.mat'
+data_path = '../database/2021-02-05'
+model_path = '../model_data/ft_ResNet50_ReID/net_last.pth'
+output_path = '../database/2021-02-05/features.mat'
 stride = 2
 batchsize = 32
 nclasses = 751
@@ -26,11 +26,11 @@ def extract_feature(model, dataloader):
     for data in dataloader:
         img, label = data
         #print(f'lable:{label}, type:{type(label)}')
-        print(type(img))
+        #print(type(img))
         #print(img.size())
         n, c, h, w = img.size()
-        print(f'n:{n}, c:{c}, h:{h}, w:{w}')
-        print(img.numpy()[7][0])
+        #print(f'n:{n}, c:{c}, h:{h}, w:{w}')
+        #print(img.numpy()[7][0])
         ff = torch.FloatTensor(n,512).zero_().cuda()
         for i in range(2):
             if(i==1): #Flip the image

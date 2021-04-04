@@ -8,15 +8,15 @@ import numpy as np
 import tensorflow as tf
 import time
 
-from tf_pose import common
-from tf_pose.common import CocoPart
-from tf_pose.tensblur.smoother import Smoother
+from BehaviorExtraction.tf_pose import common
+from BehaviorExtraction.tf_pose.common import CocoPart
+from BehaviorExtraction.tf_pose.tensblur.smoother import Smoother
 from tensorflow.python.compiler import tensorrt as trt
 
 tf.compat.v1.disable_eager_execution()
 
 try:
-    from tf_pose.pafprocess import pafprocess
+    from BehaviorExtraction.tf_pose.pafprocess import pafprocess
 except ModuleNotFoundError as e:
     print(e)
     print('you need to build c++ library for pafprocess. See : https://github.com/ildoonet/tf-pose-estimation/tree/master/tf_pose/pafprocess')

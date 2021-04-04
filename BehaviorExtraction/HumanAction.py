@@ -4,6 +4,8 @@ import pickle
 import struct
 import socket
 import PySimpleGUI as sg
+import datetime
+import pymongo
 
 import utils.lib_commons as lib_commons
 from utils.lib_openpose import SkeletonDetector
@@ -13,7 +15,7 @@ from utils.lib_draw import draw_track_boxes, draw_skel_boxes, draw_human_path, d
 ########################################################################################################################
 
 from yolo.configs import *
-from tf_pose.common import CocoPart
+from BehaviorExtraction.tf_pose.common import CocoPart
 ################################################## Settings ############################################################
 ACTION_MODEL_PATH    = 'model_data/action_classifier/model.pickle'
 ACTION_CLASSES           = np.array(['stand', 'walk', 'walk', 'stand', 'sit', 'walk', 'stand', 'stand', 'stand'])
@@ -23,6 +25,10 @@ OPENPOSE_MODEL_PATH    = 'model_data/mobilenet_thin/graph_opt.pb'
 OPENPOSE_IMG_SIZE = [656, 368] # 656x368 432x368, 336x288. Bigger is more accurate.
 
 SRC_FLOOR_PLAN = "assets/floor_plan.png"
+
+DB_NAME = "ProjectDB"
+USERNAME = "Risith"
+PASSWORD = "Risith#1234"
 ########################################################################################################################
 
 class MultiPersonClassifier(object):
@@ -161,9 +167,9 @@ def get_final_image(video, floor, size=[600, 1066]): #(height, width) format
     new_floor = cv2.resize(floor, (new_floor_size[1], new_floor_size[0]))
     return np.concatenate((padded_video, new_floor), axis=1)
 
+
 ########################################################################################################################
 if __name__ == "__main__":
-
     # -----------------------------------------------------------------------------------------------------------------#
     # Network Intialization
     if CONNECTION_ENABLE:
@@ -177,6 +183,12 @@ if __name__ == "__main__":
         conn, addr = s.accept()
         data = b''
         payload_size = struct.calcsize("L")
+
+        # ----------------------------------------------- MongoDB ------------------------------------------------------#
+        client = pymongo.MongoClient(f'mongodb+srv://{USERNAME}:{PASSWORD}@projectcluster.unskd.mongodb.net/{DB_NAME}?retryWrites=true&w=majority')
+        db = client[DB_NAME]
+        counter = db.counters.find_one({"_id": "recordId"})
+        next_id = counter["nextId"]
     else:
         vid = cv2.VideoCapture(SRC_VIDEO_PATH)
     # -----------------------------------------------------------------------------------------------------------------#
@@ -199,16 +211,16 @@ if __name__ == "__main__":
     ]
 
     layout = [
-        [sg.Image(filename='', key='Video')],
-        [sg.Multiline(size=(130, 30), font='courier 10', background_color='black', text_color='white',
-                      key='-MLINE-'), sg.VSeperator(), sg.Column(check_box_column)],
+        [sg.Image(filename='', key='video')],
+        [sg.Multiline(size=(105, 30), font='courier 12', background_color='black', text_color='white', key='mline'), sg.VSeperator(), sg.Column(check_box_column)],
     ]
 
     # create the window and show it without the plot
     window = sg.Window('Human Behaviour Prediction', layout, size=(1565, 800), no_titlebar=False)
 
     # locate the elements we'll be updating. Does the search only 1 time
-    video = window['Video']
+    video = window['video']
+    multiline = window['mline']
     # -----------------------------------------------------------------------------------------------------------------#
 
     while True:
@@ -250,7 +262,7 @@ if __name__ == "__main__":
 
         # -- Recognize Action
         id2label = action_classifier.classify(dict_id2skeleton)
-        print(id2label)
+        #print(id2label)
 
         # -- Draw
         #if CONNECTION_ENABLE:
@@ -259,13 +271,30 @@ if __name__ == "__main__":
 
         if values["Check_2"] == True:
             draw_human_skeleton(current_frame, humans)
+
+        locations = {}
         if values["Check_3"] == True:
-            floor_plan = draw_human_path(floor_plan, tracked_boxes)
+            floor_plan, locations = draw_human_path(floor_plan, tracked_boxes)
 
-        #plan_h, plan_w = floor_plan.shape[:2]
-        #plan_w = int((plan_w * frame_h) / plan_h)
+        for id, x1, y1, x2, y2 in tracked_boxes:
+            action = 'None'
+            if id in id2label:
+                if id2label[id] != '':
+                    action = f'{id2label[id]}'
 
-        #floor_plan = cv2.resize(floor_plan, (plan_w, frame_h), interpolation=cv2.INTER_AREA)
+            loca = 'None'
+            if id in locations:
+                loca = f'{locations[id]}'
+
+            time= datetime.datetime.now()
+
+            record = {"_id":next_id, "Date":time.strftime("%Y-%m-%d"), "Time":time.strftime("%H:%M:%S"),"Tag":id, "Location":loca, "Pose":action}
+            multiline.update(record)
+            next_id = next_id + 1
+            db.dataRecords.insert_one(record)
+            db.counters.update_one({"_id": "recordId"}, {"$inc": {"nextId": 1}})
+            print(record)
+
 
         imgbytes = cv2.imencode('.png', get_final_image(current_frame, floor_plan))[1].tobytes()
         video.update(data=imgbytes)

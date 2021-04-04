@@ -19,6 +19,7 @@ from tf_pose import common
 MAX_FRACTION_OF_GPU_TO_USE = 0.4
 IS_DRAW_FPS = True
 
+
 def _set_config():
     ''' Set the max GPU memory to use '''
     # For tf 1.13.1, The following setting is needed
@@ -28,6 +29,7 @@ def _set_config():
     config.gpu_options.allow_growth = True
     config.gpu_options.per_process_gpu_memory_fraction=MAX_FRACTION_OF_GPU_TO_USE
     return config
+
 
 # -- Main class
 class SkeletonDetector(object):

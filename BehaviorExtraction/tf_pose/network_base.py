@@ -7,8 +7,8 @@ import numpy as np
 import tensorflow as tf
 import tf_slim as slim #import tensorflow.contrib.slim as slim
 
-from tf_pose.common import to_str
-from tf_pose import common
+from BehaviorExtraction.tf_pose.common import to_str
+from BehaviorExtraction.tf_pose import common
 
 DEFAULT_PADDING = 'SAME'
 
