@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import tensorflow as tf
 
-from BehaviorExtraction.tf_pose import network_base
+from tf_pose import network_base
 
 
 class MobilenetNetwork(network_base.BaseNetwork):

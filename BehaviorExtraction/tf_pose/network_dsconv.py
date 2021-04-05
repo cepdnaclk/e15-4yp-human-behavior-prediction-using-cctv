@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from BehaviorExtraction.tf_pose import network_base
+from tf_pose import network_base
 
 
 class DSConvNetwork(network_base.BaseNetwork):

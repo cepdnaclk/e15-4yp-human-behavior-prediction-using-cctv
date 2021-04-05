@@ -8,15 +8,15 @@ import numpy as np
 import tensorflow as tf
 import time
 
-from BehaviorExtraction.tf_pose import common
-from BehaviorExtraction.tf_pose.common import CocoPart
-from BehaviorExtraction.tf_pose.tensblur.smoother import Smoother
+from tf_pose import common
+from tf_pose.common import CocoPart
+from tf_pose.tensblur.smoother import Smoother
 from tensorflow.python.compiler import tensorrt as trt
 
 tf.compat.v1.disable_eager_execution()
 
 try:
-    from BehaviorExtraction.tf_pose.pafprocess import pafprocess
+    from tf_pose.pafprocess import pafprocess
 except ModuleNotFoundError as e:
     print(e)
     print('you need to build c++ library for pafprocess. See : https://github.com/ildoonet/tf-pose-estimation/tree/master/tf_pose/pafprocess')
@@ -341,8 +341,10 @@ class TfPoseEstimator:
         self.tensor_heatMat = self.tensor_output[:, :, :, :19]
         self.tensor_pafMat = self.tensor_output[:, :, :, 19:]
         self.upsample_size = tf.compat.v1.placeholder(dtype=tf.int32, shape=(2,), name='upsample_size')
-        self.tensor_heatMat_up = tf.image.resize(self.tensor_output[:, :, :, :19], self.upsample_size, method=tf.image.ResizeMethod.AREA, name='upsample_heatmat')
-        self.tensor_pafMat_up = tf.image.resize(self.tensor_output[:, :, :, 19:], self.upsample_size, method=tf.image.ResizeMethod.AREA, name='upsample_pafmat')
+        self.tensor_heatMat_up = tf.image.resize(self.tensor_output[:, :, :, :19], self.upsample_size,
+                                                      method=tf.image.ResizeMethod.AREA, name='upsample_heatmat')
+        self.tensor_pafMat_up = tf.image.resize(self.tensor_output[:, :, :, 19:], self.upsample_size,
+                                                     method=tf.image.ResizeMethod.AREA, name='upsample_pafmat')
         if trt_bool is True:
             smoother = Smoother({'data': self.tensor_heatMat_up}, 25, 3.0, 19)
         else:
@@ -350,7 +352,8 @@ class TfPoseEstimator:
         gaussian_heatMat = smoother.get_output()
 
         max_pooled_in_tensor = tf.nn.pool(input=gaussian_heatMat, window_shape=(3, 3), pooling_type='MAX', padding='SAME')
-        self.tensor_peaks = tf.compat.v1.where(tf.equal(gaussian_heatMat, max_pooled_in_tensor), gaussian_heatMat, tf.zeros_like(gaussian_heatMat))
+        self.tensor_peaks = tf.compat.v1.where(tf.equal(gaussian_heatMat, max_pooled_in_tensor), gaussian_heatMat,
+                                     tf.zeros_like(gaussian_heatMat))
 
         self.heatMat = self.pafMat = None
 
@@ -408,33 +411,27 @@ class TfPoseEstimator:
         if imgcopy:
             npimg = np.copy(npimg)
         image_h, image_w = npimg.shape[:2]
-        bboxes = []
+        centers = {}
         for human in humans:
             # draw point
-            xs, ys, centers = [], [], {}
             for i in range(common.CocoPart.Background.value):
                 if i not in human.body_parts.keys():
                     continue
 
                 body_part = human.body_parts[i]
-                center_x = int(body_part.x * image_w + 0.5)
-                center_y = int(body_part.y * image_h + 0.5)
-                centers[i] = (center_x, center_y)
-                cv2.circle(npimg, (center_x, center_y), 3, common.CocoColors[i], thickness=3, lineType=8, shift=0)
-
-                if i not in [3,4,6,7]:
-                    xs.append(center_x)
-                    ys.append(center_y)
+                center = (int(body_part.x * image_w + 0.5), int(body_part.y * image_h + 0.5))
+                centers[i] = center
+                cv2.circle(npimg, center, 3, common.CocoColors[i], thickness=3, lineType=8, shift=0)
 
             # draw line
             for pair_order, pair in enumerate(common.CocoPairsRender):
                 if pair[0] not in human.body_parts.keys() or pair[1] not in human.body_parts.keys():
                     continue
 
+                # npimg = cv2.line(npimg, centers[pair[0]], centers[pair[1]], common.CocoColors[pair_order], 3)
                 cv2.line(npimg, centers[pair[0]], centers[pair[1]], common.CocoColors[pair_order], 3)
 
-            bboxes.append([min(xs), min(ys), max(xs), max(ys)])
-        return bboxes
+        return npimg
 
     def _get_scaled_img(self, npimg, scale):
         get_base_scale = lambda s, w, h: max(self.target_size[0] / float(h), self.target_size[1] / float(w)) * s
@@ -551,7 +548,7 @@ class TfPoseEstimator:
             npimg = TfPoseEstimator._quantize_img(npimg)
             pass
 
-        #logger.debug('inference+ original shape=%dx%d' % (npimg.shape[1], npimg.shape[0]))
+        logger.debug('inference+ original shape=%dx%d' % (npimg.shape[1], npimg.shape[0]))
         img = npimg
         if resize_to_default:
             img = self._get_scaled_img(npimg, None)[0][0]
@@ -562,12 +559,14 @@ class TfPoseEstimator:
         peaks = peaks[0]
         self.heatMat = heatMat_up[0]
         self.pafMat = pafMat_up[0]
-        #logger.debug('inference- heatMat=%dx%d pafMat=%dx%d' % (self.heatMat.shape[1], self.heatMat.shape[0], self.pafMat.shape[1], self.pafMat.shape[0]))
+        logger.debug('inference- heatMat=%dx%d pafMat=%dx%d' % (
+            self.heatMat.shape[1], self.heatMat.shape[0], self.pafMat.shape[1], self.pafMat.shape[0]))
 
         t = time.time()
         humans = PoseEstimator.estimate_paf(peaks, self.heatMat, self.pafMat)
-        #logger.debug('estimate time=%.5f' % (time.time() - t))
+        logger.debug('estimate time=%.5f' % (time.time() - t))
         return humans
+
 
 if __name__ == '__main__':
     import pickle
