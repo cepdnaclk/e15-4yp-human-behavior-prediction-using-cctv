@@ -15,7 +15,7 @@ from utils.lib_draw import draw_track_boxes, draw_skel_boxes, draw_human_path, d
 ########################################################################################################################
 
 from yolo.configs import *
-from BehaviorExtraction.tf_pose.common import CocoPart
+from tf_pose.common import CocoPart
 ################################################## Settings ############################################################
 ACTION_MODEL_PATH    = 'model_data/action_classifier/model.pickle'
 ACTION_CLASSES           = np.array(['stand', 'walk', 'walk', 'stand', 'sit', 'walk', 'stand', 'stand', 'stand'])

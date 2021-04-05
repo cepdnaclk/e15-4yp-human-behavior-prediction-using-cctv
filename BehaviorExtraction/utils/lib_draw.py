@@ -4,7 +4,7 @@ import colorsys
 import numpy as np
 import math
 from yolo.configs import *
-from BehaviorExtraction.tf_pose.common import CocoPart, CocoColors, CocoPairsRender
+from tf_pose.common import CocoPart, CocoColors, CocoPairsRender
 
 pts_src = np.array([[140, 678], [336, 259], [385, 147], [736, 80], [916, 35], [1113, 571]])
 pts_dst = np.array([[0, 335], [0, 104], [0, 0], [289, 0], [406, 0], [335, 406]])
