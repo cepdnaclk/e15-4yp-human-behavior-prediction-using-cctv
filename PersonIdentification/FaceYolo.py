@@ -50,7 +50,7 @@ saved_data = torch.load(data_path)  # loading data.pt file
 embedding_list = saved_data[0]  # getting embedding data
 tag_list = saved_data[1]  # getting list of names
 
-human_save_path = f'database/humans/{datetime.date.today()}/'
+human_save_path = f'BehaviorExtraction/database/humans/{datetime.date.today()}/'
 human_save_count = dict.fromkeys(set(tag_list), 0)
 human_save_time = dict.fromkeys(set(tag_list), None)
 
@@ -145,7 +145,7 @@ while video.isOpened():
                     else:
                         humanFrame = np.concatenate((humanFrame, human), axis=1)
 
-    ####################################################
+    #######################################################################################333
 
     toc = time.time()
     print(f'Total Time: {round(toc-tic,2)} ({round(1/(toc-tic),2)})')

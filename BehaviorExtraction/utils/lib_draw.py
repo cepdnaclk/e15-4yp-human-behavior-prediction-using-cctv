@@ -3,7 +3,7 @@ import cv2
 import colorsys
 import numpy as np
 import math
-from yolo.configs import *
+from Configurations import *
 from tf_pose.common import CocoPart, CocoColors, CocoPairsRender
 
 pts_src = np.array([[140, 678], [336, 259], [385, 147], [736, 80], [916, 35], [1113, 571]])

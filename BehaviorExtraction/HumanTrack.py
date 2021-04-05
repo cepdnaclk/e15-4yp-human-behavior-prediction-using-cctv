@@ -1,11 +1,12 @@
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
 import cv2
 import numpy as np
 
 import tensorflow as tf
 from yolo.utils import Load_Yolo_model, image_preprocess, postprocess_boxes, nms, read_class_names
-from yolo.configs import *
+from BehaviorExtraction.Configurations import *
 import time
 
 from deep_sort import nn_matching

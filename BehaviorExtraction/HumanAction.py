@@ -14,7 +14,7 @@ from utils.lib_classifier import *  # Import all sklearn related libraries
 from utils.lib_draw import draw_track_boxes, draw_skel_boxes, draw_human_path, draw_human_skeleton
 ########################################################################################################################
 
-from yolo.configs import *
+from Configurations import *
 from tf_pose.common import CocoPart
 ################################################## Settings ############################################################
 ACTION_MODEL_PATH    = 'model_data/action_classifier/model.pickle'

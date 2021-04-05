@@ -1,19 +1,9 @@
-#================================================================
-#
-#   File name   : yolo.py
-#   Author      : PyLessons
-#   Created date: 2020-06-04
-#   Website     : https://pylessons.com/
-#   GitHub      : https://github.com/pythonlessons/TensorFlow-2.x-YOLOv3
-#   Description : main yolo functions
-#
-#================================================================
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.layers import Conv2D, Input, LeakyReLU, ZeroPadding2D, BatchNormalization, MaxPool2D
 from tensorflow.keras.regularizers import l2
 from yolo.utils import read_class_names
-from yolo.configs import *
+from Configurations import *
 
 STRIDES         = np.array(YOLO_STRIDES)
 ANCHORS         = (np.array(YOLO_ANCHORS).T/STRIDES).T

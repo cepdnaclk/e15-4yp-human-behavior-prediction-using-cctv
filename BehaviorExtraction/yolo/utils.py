@@ -3,7 +3,7 @@ import cv2
 import time
 
 import tensorflow as tf
-from yolo.configs import *
+from Configurations import *
 from yolo.yolov4 import *
 from tensorflow.python.saved_model import tag_constants
 
