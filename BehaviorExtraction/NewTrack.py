@@ -103,7 +103,7 @@ if __name__ == "__main__":
     name = ['Aunty', 'Risith', 'Asith', 'Madaya', 'YellowMan', 'BlueMan']
     ####################################################################################################################
 
-    video = cv2.VideoCapture(0) #"./database/HumanVideo.mp4")
+    video = cv2.VideoCapture("./assets/HumanVideo.mp4")
     if video.isOpened():
         check, currFrame = video.read()
         orig_h, orig_w = currFrame.shape[:2]
@@ -145,7 +145,6 @@ if __name__ == "__main__":
                 y2 = int(abs(((y2 - pad_y // 2) / unpad_h) * orig_h))
 
                 human = currFrame[y1:y2, x1:x2]
-                #image = cv2.cvtColor(human, cv2.COLOR_BGR2RGB)
                 human_crops.append(data_transform(human))
                 human_boxes.append([x1, y1, x2, y2])
 
@@ -161,38 +160,22 @@ if __name__ == "__main__":
             tagNames = []
             indexes = np.argmax(score.numpy(), axis=0)
 
-            '''
-            if type(indexes) is np.int64:
-                indexes = [indexes]
-
-            print(indexes)
-            
-            for i in indexes:
-                tagNames.append(name[person_ids[i]])
-            '''
-
             if type(indexes) is not np.int64:
                 scores = np.diag(score.numpy()[indexes])
-                print(scores)
-                for i, s in zip(indexes, scores):
-                    if s > score_threshold:
-                        tagNames.append(name[person_ids[i]])
-                    else:
-                        tagNames.append('Unknown')
             else:
-                s = score.numpy()[indexes]
-                print(f'scoure: {s}')
+                scores = [score.numpy()[indexes]]
+                indexes = [indexes]
+
+            for i, s in zip(indexes, scores):
                 if s > score_threshold:
-                    tagNames.append(name[person_ids[indexes]])
+                    tagNames.append(name[person_ids[i]])
                 else:
                     tagNames.append('Unknown')
 
-            print(tagNames)
+            currFrame = cv2.cvtColor(currFrame, cv2.COLOR_RGB2BGR)
             draw_temp_boxes(currFrame, human_boxes, tagNames)
 
-        #cv2.imshow('Humans', human)
         cv2.imshow('Camera', currFrame)
-
         torch.cuda.empty_cache()
         key = cv2.waitKey(1)
         if key == 'q':

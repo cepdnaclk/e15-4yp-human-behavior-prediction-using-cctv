@@ -142,14 +142,6 @@ def get_final_image(video, floor, size=[600, 1066]): #(height, width) format
     new_video_size = tuple([int(i * ratio_h) for i in video_size])
     #print(new_video_size)
 
-    '''
-    if video_size[0] > video_size[1] and video_size[1] * ratio_h <= size[1]: # height large
-        new_video_size = (size[0], int(video_size[1] * ratio_h))
-
-    elif video_size[0] * ratio_w <= size[0]:
-        new_video_size = (int(video_size[0]* ratio_w), size[1])
-    '''
-
     #new_video_size = tuple([int(i * ratio) for i in video_size])
 
     resized_video = cv2.resize(video, (new_video_size[1], new_video_size[0]))
@@ -169,36 +161,23 @@ def get_final_image(video, floor, size=[600, 1066]): #(height, width) format
 
 ########################################################################################################################
 if __name__ == "__main__":
-    # -----------------------------------------------------------------------------------------------------------------#
-    # Network Intialization
-    if CONNECTION_ENABLE:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        print('Socket created')
-        s.bind((HOST, PORT))
-        print('Socket bind complete')
-        s.listen(10)
-        print('Socket now listening')
+    # ----------------------------------------------- MongoDB ---------------------------------------------------------#
+    client = pymongo.MongoClient(f'mongodb+srv://{USERNAME}:{PASSWORD}@projectcluster.unskd.mongodb.net/{DB_NAME}?retryWrites=true&w=majority')
+    db = client[DB_NAME]
+    counter = db.counters.find_one({"_id": "recordId"})
+    next_id = counter["nextId"]
 
-        conn, addr = s.accept()
-        data = b''
-        payload_size = struct.calcsize("L")
+    vid = cv2.VideoCapture(0)
 
-        # ----------------------------------------------- MongoDB ------------------------------------------------------#
-        client = pymongo.MongoClient(f'mongodb+srv://{USERNAME}:{PASSWORD}@projectcluster.unskd.mongodb.net/{DB_NAME}?retryWrites=true&w=majority')
-        db = client[DB_NAME]
-        counter = db.counters.find_one({"_id": "recordId"})
-        next_id = counter["nextId"]
-    else:
-        vid = cv2.VideoCapture(SRC_VIDEO_PATH)
-    # -----------------------------------------------------------------------------------------------------------------#
-    # -- Detector, tracker, classifier
+    # --------------------------------------------- Open Pose ---------------------------------------------------------#
+    # Initialize Pose Detector, Action Classifier
     skeleton_detector = SkeletonDetector(OPENPOSE_MODEL_PATH, OPENPOSE_IMG_SIZE)
     action_classifier = MultiPersonClassifier(ACTION_MODEL_PATH, ACTION_CLASSES)
 
     # -- Read images and process
     floor_plan = cv2.imread(SRC_FLOOR_PLAN)
 
-    # -----------------------------------------------------------------------------------------------------------------#
+    # ------------------------------------------------ GUI ------------------------------------------------------------#
     btn_style = {'size': (5, 1), 'font': ('Franklin Gothic Book', 24), 'button_color': ("black", "#F8F8F8")}
     chekc_style = {'size': (25, 1), 'font': ('Franklin Gothic Book', 16)}
 
@@ -246,7 +225,7 @@ if __name__ == "__main__":
             current_frame = data_bag['frame']
             tracked_boxes = data_bag['boxes']
         else:
-            check, current_frame = vid.read()
+            check, current_frame = vid.read(0)
         # --------------------------------------------------------------------------------------------------------------#
 
         frame_h, frame_w = current_frame.shape[:2]
@@ -294,15 +273,5 @@ if __name__ == "__main__":
             db.counters.update_one({"_id": "recordId"}, {"$inc": {"nextId": 1}})
             print(record)
 
-
         imgbytes = cv2.imencode('.png', get_final_image(current_frame, floor_plan))[1].tobytes()
         video.update(data=imgbytes)
-
-        #cv2.imshow('CCTV Stream', current_frame)
-        #cv2.imshow('FloorPlan', floor_plan)
-        #key = cv2.waitKey(1)
-        #if key == 'q':
-            #break
-
-    #cv2.destroyAllWindows()
-

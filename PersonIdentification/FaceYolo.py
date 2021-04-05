@@ -50,7 +50,7 @@ saved_data = torch.load(data_path)  # loading data.pt file
 embedding_list = saved_data[0]  # getting embedding data
 tag_list = saved_data[1]  # getting list of names
 
-human_save_path = f'BehaviorExtraction/database/humans/{datetime.date.today()}/'
+human_save_path = f'BehaviorExtraction/database/{datetime.date.today()}/'
 human_save_count = dict.fromkeys(set(tag_list), 0)
 human_save_time = dict.fromkeys(set(tag_list), None)
 
@@ -58,7 +58,7 @@ for tag in tag_list:
     human_save_count[tag] = len(glob.glob1(human_save_path + f'{tag}', "*.jpg"))
 
 ########################################################################################################################
-video = cv2.VideoCapture('database/C.mp4')
+video = cv2.VideoCapture(0) #'database/C.mp4')
 if video.isOpened():
     check, currFrame = video.read()
     orig_h, orig_w = currFrame.shape[:2]
@@ -128,7 +128,7 @@ while video.isOpened():
                         tag = tag_list[idx_min]
                         currTime = datetime.datetime.now()
                         if human_save_time[tag] is None or save_time_thres < (currTime - human_save_time[tag]).total_seconds():
-                            human_save_path = f'database/humans/{datetime.date.today()}/{tag}'
+                            human_save_path = f'BehaviorExtraction/database/humans/{datetime.date.today()}/{tag}'
                             Path(human_save_path).mkdir(parents=True, exist_ok=True)
                             human = cv2.cvtColor(human, cv2.COLOR_RGB2BGR)
                             cv2.imwrite(os.path.join(human_save_path, f'{tag}{human_save_count[tag]}.jpg'), human)
