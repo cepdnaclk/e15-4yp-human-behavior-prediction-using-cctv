@@ -1,7 +1,7 @@
 # Connection options
 HOST                        = '127.0.0.1'
 PORT                        = 8083
-CONNECTION_ENABLE           = True
+CONNECTION_ENABLE           = False
 
 # Source Settings
 SRC_VIDEO_SAMPLE_INTERVAL = 1
@@ -9,10 +9,6 @@ SRC_VIDEO_PATH = 0#"./database/HumanVideo.mp4"
 SRC_DEEPSORT_MODEL_PATH = 'model_data/mars-small128/mars-small128.pb'
 
 # REID Options
-
-
-
-
 
 
 # YOLO options
@@ -42,6 +38,7 @@ if YOLO_TYPE                == "yolov3":
                                [[116, 90], [156, 198], [373, 326]]]
 
 # Train options
+'''
 TRAIN_YOLO_TINY             = False
 TRAIN_SAVE_BEST_ONLY        = True # saves only best model according validation loss (True recommended)
 TRAIN_SAVE_CHECKPOINT       = False # saves all best validated checkpoints in training process (may require a lot disk space) (False recommended)
@@ -61,11 +58,9 @@ TRAIN_LR_END                = 1e-6
 TRAIN_WARMUP_EPOCHS         = 2
 TRAIN_EPOCHS                = 100
 
-
-#YOLOv3-TINY and YOLOv4-TINY WORKAROUND
-
 if TRAIN_YOLO_TINY:
     YOLO_STRIDES            = [16, 32, 64]    
     YOLO_ANCHORS            = [[[10,  14], [23,   27], [37,   58]],
                                [[81,  82], [135, 169], [344, 319]],
                                [[0,    0], [0,     0], [0,     0]]]
+'''
