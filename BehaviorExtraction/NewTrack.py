@@ -1,29 +1,13 @@
 from __future__ import division
 import cv2
-########################################################################################################################
-import torch.backends.cudnn as cudnn
-from BehaviorExtraction.reid.model import ft_net
-from torchvision import transforms
-from torch.autograd import Variable
-import torch.nn as nn
+import numpy as np
 import torch
-import scipy.io
-
-# Options
-name = 'ft_ResNet50'
-data_path = 'database/2021-02-05'
-model_path = 'model_data/ft_ResNet50_ReID/net_last.pth'
-mat_path = 'database/2021-02-05/features.mat'
-stride = 2
-batchsize = 256
-nclasses = 751
-score_threshold = 0.5
-gpu_id = 0
 
 ########################################################################################################################
-from BehaviorExtraction.yolo2.models import *
-from BehaviorExtraction.yolo2.utils import *
-from BehaviorExtraction.yolo2.datasets import *
+from yolo2.models import *
+from yolo2.utils import *
+from yolo2.datasets import *
+from torch.autograd import Variable
 
 model_def = "model_data_new/yolo/yolov3.cfg"
 weights_path = "model_data_new/yolo/yolov3.weights"
@@ -35,6 +19,15 @@ dist_thres = 0.8
 face_thres = 0.9
 save_time_thres = 20 #In seconds
 
+########################################################################################################################
+from BehaviorExtraction.reid.extractor import HumanReIdentifier
+from torchvision import transforms
+
+data_path = 'database/2021-02-05'
+REID_MODEL_PATH = 'model_data/ft_ResNet50_ReID/net_last.pth'
+REID_FEAT_MAT = 'database/2021-02-05/features.mat'
+
+
 def draw_temp_boxes(image, tracked_bboxes, names):
     for box, name in zip(tracked_bboxes, names):
         x1, y1, x2, y2 = box
@@ -45,23 +38,6 @@ def draw_temp_boxes(image, tracked_bboxes, names):
         cv2.rectangle(image, (x1, y1), (x1 + text_width, y1 - text_height - baseline), [255, 0, 0] , thickness=cv2.FILLED)
         cv2.putText(image, name, (x1, y1 - 4), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.6, [255, 255, 255], 1, lineType=cv2.LINE_AA)
 
-def extract_feature(model, img):
-    feature = torch.FloatTensor()
-    n, c, h, w = img.size()
-    ff = torch.FloatTensor(n, 512).zero_().cuda()
-    for i in range(2):
-        if (i == 1):  # Flip the image
-            inv_idx = torch.arange(img.size(3) - 1, -1, -1).long()
-            img = img.index_select(3, inv_idx)
-
-        input_img = Variable(img.cuda())
-        outputs = model(input_img)
-        ff += outputs
-
-    fnorm = torch.norm(ff, p=2, dim=1, keepdim=True)
-    ff = ff.div(fnorm.expand_as(ff))
-    feature = torch.cat((feature, ff.data.cpu()), 0)
-    return feature
 
 if __name__ == "__main__":
     ###################################################### YOLO ########################################################
@@ -76,9 +52,7 @@ if __name__ == "__main__":
     Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
     ###################################################### ReID ########################################################
-    # Set gpu ids
-    torch.cuda.set_device(gpu_id)
-    cudnn.benchmark = True
+    reIdentifier = HumanReIdentifier(REID_MODEL_PATH, REID_FEAT_MAT)
 
     data_transform = transforms.Compose([
         transforms.ToPILImage(),
@@ -87,21 +61,9 @@ if __name__ == "__main__":
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
-    result = scipy.io.loadmat(mat_path)
-    person_feature = torch.FloatTensor(result['person_feature'])
-    person_ids = result['person_ids'][0]
-
-    model = ft_net(nclasses, stride=stride)
-    model.load_state_dict(torch.load(model_path))
-    model.classifier.classifier = nn.Sequential()
-
-    # Change to test mode
-    model = model.eval()
-    if torch.cuda.is_available():
-        model = model.cuda()
-
-    name = ['Aunty', 'Risith', 'Asith', 'Madaya', 'YellowMan', 'BlueMan']
-    ####################################################################################################################
+    ################################################## OPEN POSE #######################################################
+    #skeleton_detector = SkeletonDetector(OPENPOSE_MODEL_PATH, OPENPOSE_IMG_SIZE)
+    #action_classifier = MultiPersonClassifier(ACTION_MODEL_PATH, ACTION_CLASSES)
 
     video = cv2.VideoCapture("./assets/HumanVideo.mp4")
     if video.isOpened():
@@ -149,29 +111,7 @@ if __name__ == "__main__":
                 human_boxes.append([x1, y1, x2, y2])
 
         if human_crops:
-            stacked_tensor = torch.stack(human_crops)
-            with torch.no_grad():
-                feature = extract_feature(model, stacked_tensor)
-
-            query = torch.transpose(feature, 0, 1)
-            score = torch.mm(person_feature, query)
-            score = score.squeeze(1).cpu()
-
-            tagNames = []
-            indexes = np.argmax(score.numpy(), axis=0)
-
-            if type(indexes) is not np.int64:
-                scores = np.diag(score.numpy()[indexes])
-            else:
-                scores = [score.numpy()[indexes]]
-                indexes = [indexes]
-
-            for i, s in zip(indexes, scores):
-                if s > score_threshold:
-                    tagNames.append(name[person_ids[i]])
-                else:
-                    tagNames.append('Unknown')
-
+            tagNames = reIdentifier.getHumanTags(human_crops)
             currFrame = cv2.cvtColor(currFrame, cv2.COLOR_RGB2BGR)
             draw_temp_boxes(currFrame, human_boxes, tagNames)
 
