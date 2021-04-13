@@ -11,7 +11,7 @@ name = 'ft_ResNet50'
 stride = 2
 batchsize = 256
 nclasses = 751
-score_threshold = 0.5
+score_threshold = 0.7
 gpu_id = 0
 name = ['Aunty', 'Risith', 'Asith', 'Madaya', 'YellowMan', 'BlueMan']
 
@@ -61,7 +61,7 @@ class HumanReIdentifier(object):
         score = torch.mm(self.human_feats, query)
         score = score.squeeze(1).cpu()
 
-        tagNames = []
+        tags = []
         indexes = np.argmax(score.numpy(), axis=0)
 
         if type(indexes) is not np.int64:
@@ -72,8 +72,8 @@ class HumanReIdentifier(object):
 
         for i, s in zip(indexes, scores):
             if s > score_threshold:
-                tagNames.append(name[self.human_ids[i]])
+                tags.append(self.human_ids[i])
             else:
-                tagNames.append('Unknown')
+                tags.append(-1)
 
-        return tagNames
+        return tags

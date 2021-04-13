@@ -25,7 +25,6 @@ def weights_init_classifier(m):
         init.constant_(m.bias.data, 0.0)
 
 # Defines the new fc layer and classification layer
-# |--Linear--|--bn--|--relu--|--Linear--|
 class ClassBlock(nn.Module):
     def __init__(self, input_dim, class_num, droprate, relu=False, bnorm=True, num_bottleneck=512, linear=True, return_f = False):
         super(ClassBlock, self).__init__()

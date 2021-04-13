@@ -14,9 +14,9 @@ import glob
 ##############################################################################################
 # Options
 name = 'ft_ResNet50'
-data_path = '../database/2021-02-05'
+data_path = '../database/faces'
 model_path = '../model_data/ft_ResNet50_ReID/net_last.pth'
-mat_path = '../database/2021-02-05/features.mat'
+mat_path = '../database/faces/features.mat'
 stride = 2
 batchsize = 256
 nclasses = 751

@@ -12,9 +12,9 @@ import time
 ##############################################################################################
 # Options
 name = 'ft_ResNet50'
-data_path = '../database/2021-02-05'
-model_path = '../model_data/ft_ResNet50_ReID/net_last.pth'
-output_path = '../database/2021-02-05/features.mat'
+data_path = '../database/humans/2021-04-13'
+model_path = '../model_data/reid/reid_model.pth'
+output_path = '../database/humans/2021-04-13/today.mat'
 stride = 2
 batchsize = 32
 nclasses = 751
@@ -99,7 +99,7 @@ if __name__ == '__main__':
     print(f'No Of Photos: {len(person_ids)}')
     print(f'Ids: {person_ids}')
     print(f'Feature Shape: {person_feature.numpy().shape}')
-    print(person_feature.numpy()[7])
+    #print(person_feature.numpy()[7])
 
     # Save to Matlab for check
     result = {'person_ids': person_ids, 'person_feature':person_feature.numpy()}
