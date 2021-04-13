@@ -12,9 +12,9 @@ import time
 ##############################################################################################
 # Options
 name = 'ft_ResNet50'
-data_path = '../database/humans/2021-04-13'
-model_path = '../model_data/reid/reid_model.pth'
-output_path = '../database/humans/2021-04-13/today.mat'
+data_path = '../../ImageDatabase/Human/2021-04-13'
+model_path = '../../ModelFiles/reid/reid_model.pth'
+output_path = '../../ImageDatabase/Human/2021-04-13/today.mat'
 stride = 2
 batchsize = 32
 nclasses = 751

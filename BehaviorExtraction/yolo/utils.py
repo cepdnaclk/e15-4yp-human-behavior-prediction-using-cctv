@@ -1,491 +1,313 @@
-from multiprocessing import Process, Queue, Pipe
-import cv2
-import time
-
-import tensorflow as tf
-from Configurations import *
-from yolo.yolov4 import *
-from tensorflow.python.saved_model import tag_constants
+from __future__ import division
+import tqdm
+import torch
+import numpy as np
 
 
-def load_yolo_weights(model, weights_file):
-    tf.keras.backend.clear_session() # used to reset layer names
-    # load Darknet original weights to TensorFlow model
-    if YOLO_TYPE == "yolov3":
-        range1 = 75 if not TRAIN_YOLO_TINY else 13
-        range2 = [58, 66, 74] if not TRAIN_YOLO_TINY else [9, 12]
-    if YOLO_TYPE == "yolov4":
-        range1 = 110 if not TRAIN_YOLO_TINY else 21
-        range2 = [93, 101, 109] if not TRAIN_YOLO_TINY else [17, 20]
-    
-    with open(weights_file, 'rb') as wf:
-        major, minor, revision, seen, _ = np.fromfile(wf, dtype=np.int32, count=5)
 
-        j = 0
-        for i in range(range1):
-            if i > 0:
-                conv_layer_name = 'conv2d_%d' %i
-            else:
-                conv_layer_name = 'conv2d'
-                
-            if j > 0:
-                bn_layer_name = 'batch_normalization_%d' %j
-            else:
-                bn_layer_name = 'batch_normalization'
-            
-            conv_layer = model.get_layer(conv_layer_name)
-            filters = conv_layer.filters
-            k_size = conv_layer.kernel_size[0]
-            in_dim = conv_layer.input_shape[-1]
+def to_cpu(tensor):
+    return tensor.detach().cpu()
 
-            if i not in range2:
-                # darknet weights: [beta, gamma, mean, variance]
-                bn_weights = np.fromfile(wf, dtype=np.float32, count=4 * filters)
-                # tf weights: [gamma, beta, mean, variance]
-                bn_weights = bn_weights.reshape((4, filters))[[1, 0, 2, 3]]
-                bn_layer = model.get_layer(bn_layer_name)
-                j += 1
-            else:
-                conv_bias = np.fromfile(wf, dtype=np.float32, count=filters)
 
-            # darknet shape (out_dim, in_dim, height, width)
-            conv_shape = (filters, in_dim, k_size, k_size)
-            conv_weights = np.fromfile(wf, dtype=np.float32, count=np.product(conv_shape))
-            # tf shape (height, width, in_dim, out_dim)
-            conv_weights = conv_weights.reshape(conv_shape).transpose([2, 3, 1, 0])
-
-            if i not in range2:
-                conv_layer.set_weights([conv_weights])
-                bn_layer.set_weights(bn_weights)
-            else:
-                conv_layer.set_weights([conv_weights, conv_bias])
-
-        assert len(wf.read()) == 0, 'failed to read all data'
-
-def Load_Yolo_model():
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    if len(gpus) > 0:
-        print(f'GPUs {gpus}')
-        try: tf.config.experimental.set_memory_growth(gpus[0], True)
-        except RuntimeError: pass
-
-    if YOLO_TYPE == "yolov4":
-        Darknet_weights = YOLO_V4_TINY_WEIGHTS if TRAIN_YOLO_TINY else YOLO_V4_WEIGHTS
-    if YOLO_TYPE == "yolov3":
-        Darknet_weights = YOLO_V3_TINY_WEIGHTS if TRAIN_YOLO_TINY else YOLO_V3_WEIGHTS
-
-    if YOLO_CUSTOM_WEIGHTS == False:
-        print("Loading Darknet_weights from:", Darknet_weights)
-        yolo = Create_Yolo(input_size=YOLO_INPUT_SIZE, CLASSES=YOLO_COCO_CLASSES)
-        load_yolo_weights(yolo, Darknet_weights) # use Darknet weights
-    else:
-        print("Loading custom weights from:", YOLO_CUSTOM_WEIGHTS)
-        yolo = Create_Yolo(input_size=YOLO_INPUT_SIZE, CLASSES=TRAIN_CLASSES)
-        yolo.load_weights(f"./checkpoints/{TRAIN_MODEL_NAME}") # use custom weights
-
-    return yolo
-
-def image_preprocess(image, target_size, gt_boxes=None):
-    ih, iw    = target_size
-    h,  w, _  = image.shape
-
-    scale = min(iw/w, ih/h)
-    nw, nh  = int(scale * w), int(scale * h)
-    image_resized = cv2.resize(image, (nw, nh))
-
-    image_paded = np.full(shape=[ih, iw, 3], fill_value=128.0)
-    dw, dh = (iw - nw) // 2, (ih-nh) // 2
-    image_paded[dh:nh+dh, dw:nw+dw, :] = image_resized
-    image_paded = image_paded / 255.
-
-    if gt_boxes is None:
-        return image_paded
-
-    else:
-        gt_boxes[:, [0, 2]] = gt_boxes[:, [0, 2]] * scale + dw
-        gt_boxes[:, [1, 3]] = gt_boxes[:, [1, 3]] * scale + dh
-        return image_paded, gt_boxes
-
-def bboxes_iou(boxes1, boxes2):
-    boxes1 = np.array(boxes1)
-    boxes2 = np.array(boxes2)
-
-    boxes1_area = (boxes1[..., 2] - boxes1[..., 0]) * (boxes1[..., 3] - boxes1[..., 1])
-    boxes2_area = (boxes2[..., 2] - boxes2[..., 0]) * (boxes2[..., 3] - boxes2[..., 1])
-
-    left_up       = np.maximum(boxes1[..., :2], boxes2[..., :2])
-    right_down    = np.minimum(boxes1[..., 2:], boxes2[..., 2:])
-
-    inter_section = np.maximum(right_down - left_up, 0.0)
-    inter_area    = inter_section[..., 0] * inter_section[..., 1]
-    union_area    = boxes1_area + boxes2_area - inter_area
-    ious          = np.maximum(1.0 * inter_area / union_area, np.finfo(np.float32).eps)
-
-    return ious
-
-def nms(bboxes, iou_threshold, sigma=0.3, method='nms'):
+def load_classes(path):
     """
-    :param bboxes: (xmin, ymin, xmax, ymax, score, class)
-
-    Note: soft-nms, https://arxiv.org/pdf/1704.04503.pdf
-          https://github.com/bharatsingh430/soft-nms
+    Loads class labels at 'path'
     """
-    classes_in_img = list(set(bboxes[:, 5]))
-    best_bboxes = []
+    fp = open(path, "r")
+    names = fp.read().split("\n")[:-1]
+    return names
 
-    for cls in classes_in_img:
-        cls_mask = (bboxes[:, 5] == cls)
-        cls_bboxes = bboxes[cls_mask]
-        # Process 1: Determine whether the number of bounding boxes is greater than 0 
-        while len(cls_bboxes) > 0:
-            # Process 2: Select the bounding box with the highest score according to socre order A
-            max_ind = np.argmax(cls_bboxes[:, 4])
-            best_bbox = cls_bboxes[max_ind]
-            best_bboxes.append(best_bbox)
-            cls_bboxes = np.concatenate([cls_bboxes[: max_ind], cls_bboxes[max_ind + 1:]])
-            # Process 3: Calculate this bounding box A and
-            # Remain all iou of the bounding box and remove those bounding boxes whose iou value is higher than the threshold 
-            iou = bboxes_iou(best_bbox[np.newaxis, :4], cls_bboxes[:, :4])
-            weight = np.ones((len(iou),), dtype=np.float32)
 
-            assert method in ['nms', 'soft-nms']
+def weights_init_normal(m):
+    classname = m.__class__.__name__
+    if classname.find("Conv") != -1:
+        torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
+    elif classname.find("BatchNorm2d") != -1:
+        torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
+        torch.nn.init.constant_(m.bias.data, 0.0)
 
-            if method == 'nms':
-                iou_mask = iou > iou_threshold
-                weight[iou_mask] = 0.0
 
-            if method == 'soft-nms':
-                weight = np.exp(-(1.0 * iou ** 2 / sigma))
+def rescale_boxes(boxes, current_dim, original_shape):
+    """ Rescales bounding boxes to the original shape """
+    orig_h, orig_w = original_shape
+    # The amount of padding that was added
+    pad_x = max(orig_h - orig_w, 0) * (current_dim / max(original_shape))
+    pad_y = max(orig_w - orig_h, 0) * (current_dim / max(original_shape))
+    # Image height and width after padding is removed
+    unpad_h = current_dim - pad_y
+    unpad_w = current_dim - pad_x
+    # Rescale bounding boxes to dimension of original image
+    boxes[:, 0] = ((boxes[:, 0] - pad_x // 2) / unpad_w) * orig_w
+    boxes[:, 1] = ((boxes[:, 1] - pad_y // 2) / unpad_h) * orig_h
+    boxes[:, 2] = ((boxes[:, 2] - pad_x // 2) / unpad_w) * orig_w
+    boxes[:, 3] = ((boxes[:, 3] - pad_y // 2) / unpad_h) * orig_h
+    return boxes
 
-            cls_bboxes[:, 4] = cls_bboxes[:, 4] * weight
-            score_mask = cls_bboxes[:, 4] > 0.
-            cls_bboxes = cls_bboxes[score_mask]
 
-    return best_bboxes
+def xywh2xyxy(x):
+    y = x.new(x.shape)
+    y[..., 0] = x[..., 0] - x[..., 2] / 2
+    y[..., 1] = x[..., 1] - x[..., 3] / 2
+    y[..., 2] = x[..., 0] + x[..., 2] / 2
+    y[..., 3] = x[..., 1] + x[..., 3] / 2
+    return y
 
-def postprocess_boxes(pred_bbox, original_image, input_size, score_threshold):
-    valid_scale=[0, np.inf]
-    pred_bbox = np.array(pred_bbox)
 
-    pred_xywh = pred_bbox[:, 0:4]
-    pred_conf = pred_bbox[:, 4]
-    pred_prob = pred_bbox[:, 5:]
+def ap_per_class(tp, conf, pred_cls, target_cls):
+    """ Compute the average precision, given the recall and precision curves.
+    Source: https://github.com/rafaelpadilla/Object-Detection-Metrics.
+    # Arguments
+        tp:    True positives (list).
+        conf:  Objectness value from 0-1 (list).
+        pred_cls: Predicted object classes (list).
+        target_cls: True object classes (list).
+    # Returns
+        The average precision as computed in py-faster-rcnn.
+    """
 
-    # 1. (x, y, w, h) --> (xmin, ymin, xmax, ymax)
-    pred_coor = np.concatenate([pred_xywh[:, :2] - pred_xywh[:, 2:] * 0.5,
-                                pred_xywh[:, :2] + pred_xywh[:, 2:] * 0.5], axis=-1)
-    # 2. (xmin, ymin, xmax, ymax) -> (xmin_org, ymin_org, xmax_org, ymax_org)
-    org_h, org_w = original_image.shape[:2]
-    resize_ratio = min(input_size / org_w, input_size / org_h)
+    # Sort by objectness
+    i = np.argsort(-conf)
+    tp, conf, pred_cls = tp[i], conf[i], pred_cls[i]
 
-    dw = (input_size - resize_ratio * org_w) / 2
-    dh = (input_size - resize_ratio * org_h) / 2
+    # Find unique classes
+    unique_classes = np.unique(target_cls)
 
-    pred_coor[:, 0::2] = 1.0 * (pred_coor[:, 0::2] - dw) / resize_ratio
-    pred_coor[:, 1::2] = 1.0 * (pred_coor[:, 1::2] - dh) / resize_ratio
+    # Create Precision-Recall curve and compute AP for each class
+    ap, p, r = [], [], []
+    for c in tqdm.tqdm(unique_classes, desc="Computing AP"):
+        i = pred_cls == c
+        n_gt = (target_cls == c).sum()  # Number of ground truth objects
+        n_p = i.sum()  # Number of predicted objects
 
-    # 3. clip some boxes those are out of range
-    pred_coor = np.concatenate([np.maximum(pred_coor[:, :2], [0, 0]),
-                                np.minimum(pred_coor[:, 2:], [org_w - 1, org_h - 1])], axis=-1)
-    invalid_mask = np.logical_or((pred_coor[:, 0] > pred_coor[:, 2]), (pred_coor[:, 1] > pred_coor[:, 3]))
-    pred_coor[invalid_mask] = 0
+        if n_p == 0 and n_gt == 0:
+            continue
+        elif n_p == 0 or n_gt == 0:
+            ap.append(0)
+            r.append(0)
+            p.append(0)
+        else:
+            # Accumulate FPs and TPs
+            fpc = (1 - tp[i]).cumsum()
+            tpc = (tp[i]).cumsum()
 
-    # 4. discard some invalid boxes
-    bboxes_scale = np.sqrt(np.multiply.reduce(pred_coor[:, 2:4] - pred_coor[:, 0:2], axis=-1))
-    scale_mask = np.logical_and((valid_scale[0] < bboxes_scale), (bboxes_scale < valid_scale[1]))
+            # Recall
+            recall_curve = tpc / (n_gt + 1e-16)
+            r.append(recall_curve[-1])
 
-    # 5. discard boxes with low scores
-    classes = np.argmax(pred_prob, axis=-1)
-    scores = pred_conf * pred_prob[np.arange(len(pred_coor)), classes]
-    score_mask = scores > score_threshold
-    mask = np.logical_and(scale_mask, score_mask)
-    coors, scores, classes = pred_coor[mask], scores[mask], classes[mask]
+            # Precision
+            precision_curve = tpc / (tpc + fpc)
+            p.append(precision_curve[-1])
 
-    return np.concatenate([coors, scores[:, np.newaxis], classes[:, np.newaxis]], axis=-1)
+            # AP from recall-precision curve
+            ap.append(compute_ap(recall_curve, precision_curve))
 
-def detect_image(Yolo, image_path, output_path, input_size=416, show=False, CLASSES=YOLO_COCO_CLASSES, score_threshold=0.3, iou_threshold=0.45, rectangle_colors=''):
-    original_image      = cv2.imread(image_path)
-    original_image      = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
-    original_image      = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
+    # Compute F1 score (harmonic mean of precision and recall)
+    p, r, ap = np.array(p), np.array(r), np.array(ap)
+    f1 = 2 * p * r / (p + r + 1e-16)
 
-    image_data = image_preprocess(np.copy(original_image), [input_size, input_size])
-    image_data = image_data[np.newaxis, ...].astype(np.float32)
+    return p, r, ap, f1, unique_classes.astype("int32")
 
-    if YOLO_FRAMEWORK == "tf":
-        pred_bbox = Yolo.predict(image_data)
-    elif YOLO_FRAMEWORK == "trt":
-        batched_input = tf.constant(image_data)
-        result = Yolo(batched_input)
-        pred_bbox = []
-        for key, value in result.items():
-            value = value.numpy()
-            pred_bbox.append(value)
-        
-    pred_bbox = [tf.reshape(x, (-1, tf.shape(x)[-1])) for x in pred_bbox]
-    pred_bbox = tf.concat(pred_bbox, axis=0)
-    
-    bboxes = postprocess_boxes(pred_bbox, original_image, input_size, score_threshold)
-    bboxes = nms(bboxes, iou_threshold, method='nms')
 
-    image = draw_bbox(original_image, bboxes, CLASSES=CLASSES, rectangle_colors=rectangle_colors)
-    # CreateXMLfile("XML_Detections", str(int(time.time())), original_image, bboxes, read_class_names(CLASSES))
+def compute_ap(recall, precision):
+    """ Compute the average precision, given the recall and precision curves.
+    Code originally from https://github.com/rbgirshick/py-faster-rcnn.
 
-    if output_path != '': cv2.imwrite(output_path, image)
-    if show:
-        # Show the image
-        cv2.imshow("predicted image", image)
-        # Load and hold the image
-        cv2.waitKey(0)
-        # To close the window after the required kill value was provided
-        cv2.destroyAllWindows()
-        
-    return image
+    # Arguments
+        recall:    The recall curve (list).
+        precision: The precision curve (list).
+    # Returns
+        The average precision as computed in py-faster-rcnn.
+    """
+    # correct AP calculation
+    # first append sentinel values at the end
+    mrec = np.concatenate(([0.0], recall, [1.0]))
+    mpre = np.concatenate(([0.0], precision, [0.0]))
 
-def Predict_bbox_mp(Frames_data, Predicted_data, Processing_times):
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    if len(gpus) > 0:
-        try: tf.config.experimental.set_memory_growth(gpus[0], True)
-        except RuntimeError: print("RuntimeError in tf.config.experimental.list_physical_devices('GPU')")
-    Yolo = Load_Yolo_model()
-    times = []
-    while True:
-        if Frames_data.qsize()>0:
-            image_data = Frames_data.get()
-            t1 = time.time()
-            Processing_times.put(time.time())
-            
-            if YOLO_FRAMEWORK == "tf":
-                pred_bbox = Yolo.predict(image_data)
-            elif YOLO_FRAMEWORK == "trt":
-                batched_input = tf.constant(image_data)
-                result = Yolo(batched_input)
-                pred_bbox = []
-                for key, value in result.items():
-                    value = value.numpy()
-                    pred_bbox.append(value)
+    # compute the precision envelope
+    for i in range(mpre.size - 1, 0, -1):
+        mpre[i - 1] = np.maximum(mpre[i - 1], mpre[i])
 
-            pred_bbox = [tf.reshape(x, (-1, tf.shape(x)[-1])) for x in pred_bbox]
-            pred_bbox = tf.concat(pred_bbox, axis=0)
-            
-            Predicted_data.put(pred_bbox)
+    # to calculate area under PR curve, look for points
+    # where X axis (recall) changes value
+    i = np.where(mrec[1:] != mrec[:-1])[0]
 
-def postprocess_mp(Predicted_data, original_frames, Processed_frames, Processing_times, input_size, CLASSES, score_threshold, iou_threshold, rectangle_colors, realtime):
-    times = []
-    while True:
-        if Predicted_data.qsize()>0:
-            pred_bbox = Predicted_data.get()
-            if realtime:
-                while original_frames.qsize() > 1:
-                    original_image = original_frames.get()
-            else:
-                original_image = original_frames.get()
-            
-            bboxes = postprocess_boxes(pred_bbox, original_image, input_size, score_threshold)
-            bboxes = nms(bboxes, iou_threshold, method='nms')
-            image = draw_bbox(original_image, bboxes, CLASSES=CLASSES, rectangle_colors=rectangle_colors)
-            times.append(time.time()-Processing_times.get())
-            times = times[-20:]
-            
-            ms = sum(times)/len(times)*1000
-            fps = 1000 / ms
-            image = cv2.putText(image, "Time: {:.1f}FPS".format(fps), (0, 30), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 0, 255), 2)
-            #print("Time: {:.2f}ms, Final FPS: {:.1f}".format(ms, fps))
-            
-            Processed_frames.put(image)
+    # and sum (\Delta recall) * prec
+    ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])
+    return ap
 
-def Show_Image_mp(Processed_frames, show, Final_frames):
-    while True:
-        if Processed_frames.qsize()>0:
-            image = Processed_frames.get()
-            Final_frames.put(image)
-            if show:
-                cv2.imshow('output', image)
-                if cv2.waitKey(25) & 0xFF == ord("q"):
-                    cv2.destroyAllWindows()
+
+def get_batch_statistics(outputs, targets, iou_threshold):
+    """ Compute true positives, predicted scores and predicted labels per sample """
+    batch_metrics = []
+    for sample_i in range(len(outputs)):
+
+        if outputs[sample_i] is None:
+            continue
+
+        output = outputs[sample_i]
+        pred_boxes = output[:, :4]
+        pred_scores = output[:, 4]
+        pred_labels = output[:, -1]
+
+        true_positives = np.zeros(pred_boxes.shape[0])
+
+        annotations = targets[targets[:, 0] == sample_i][:, 1:]
+        target_labels = annotations[:, 0] if len(annotations) else []
+        if len(annotations):
+            detected_boxes = []
+            target_boxes = annotations[:, 1:]
+
+            for pred_i, (pred_box, pred_label) in enumerate(zip(pred_boxes, pred_labels)):
+
+                # If targets are found break
+                if len(detected_boxes) == len(annotations):
                     break
 
-# detect from webcam
-def detect_video_realtime_mp(video_path, output_path, input_size=416, show=False, CLASSES=YOLO_COCO_CLASSES, score_threshold=0.3, iou_threshold=0.45, rectangle_colors='', realtime=False):
-    if realtime:
-        vid = cv2.VideoCapture(0)
+                # Ignore if label is not one of the target labels
+                if pred_label not in target_labels:
+                    continue
+
+                iou, box_index = bbox_iou(pred_box.unsqueeze(0), target_boxes).max(0)
+                if iou >= iou_threshold and box_index not in detected_boxes:
+                    true_positives[pred_i] = 1
+                    detected_boxes += [box_index]
+        batch_metrics.append([true_positives, pred_scores, pred_labels])
+    return batch_metrics
+
+
+def bbox_wh_iou(wh1, wh2):
+    wh2 = wh2.t()
+    w1, h1 = wh1[0], wh1[1]
+    w2, h2 = wh2[0], wh2[1]
+    inter_area = torch.min(w1, w2) * torch.min(h1, h2)
+    union_area = (w1 * h1 + 1e-16) + w2 * h2 - inter_area
+    return inter_area / union_area
+
+
+def bbox_iou(box1, box2, x1y1x2y2=True):
+    """
+    Returns the IoU of two bounding boxes
+    """
+    if not x1y1x2y2:
+        # Transform from center and width to exact coordinates
+        b1_x1, b1_x2 = box1[:, 0] - box1[:, 2] / 2, box1[:, 0] + box1[:, 2] / 2
+        b1_y1, b1_y2 = box1[:, 1] - box1[:, 3] / 2, box1[:, 1] + box1[:, 3] / 2
+        b2_x1, b2_x2 = box2[:, 0] - box2[:, 2] / 2, box2[:, 0] + box2[:, 2] / 2
+        b2_y1, b2_y2 = box2[:, 1] - box2[:, 3] / 2, box2[:, 1] + box2[:, 3] / 2
     else:
-        vid = cv2.VideoCapture(video_path)
+        # Get the coordinates of bounding boxes
+        b1_x1, b1_y1, b1_x2, b1_y2 = box1[:, 0], box1[:, 1], box1[:, 2], box1[:, 3]
+        b2_x1, b2_y1, b2_x2, b2_y2 = box2[:, 0], box2[:, 1], box2[:, 2], box2[:, 3]
 
-    # by default VideoCapture returns float instead of int
-    width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = int(vid.get(cv2.CAP_PROP_FPS))
-    codec = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter(output_path, codec, fps, (width, height)) # output_path must be .mp4
-    no_of_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+    # get the corrdinates of the intersection rectangle
+    inter_rect_x1 = torch.max(b1_x1, b2_x1)
+    inter_rect_y1 = torch.max(b1_y1, b2_y1)
+    inter_rect_x2 = torch.min(b1_x2, b2_x2)
+    inter_rect_y2 = torch.min(b1_y2, b2_y2)
+    # Intersection area
+    inter_area = torch.clamp(inter_rect_x2 - inter_rect_x1 + 1, min=0) * torch.clamp(
+        inter_rect_y2 - inter_rect_y1 + 1, min=0
+    )
+    # Union Area
+    b1_area = (b1_x2 - b1_x1 + 1) * (b1_y2 - b1_y1 + 1)
+    b2_area = (b2_x2 - b2_x1 + 1) * (b2_y2 - b2_y1 + 1)
 
-    original_frames = Queue()
-    Frames_data = Queue()
-    Predicted_data = Queue()
-    Processed_frames = Queue()
-    Processing_times = Queue()
-    Final_frames = Queue()
-    
-    p1 = Process(target=Predict_bbox_mp, args=(Frames_data, Predicted_data, Processing_times))
-    p2 = Process(target=postprocess_mp, args=(Predicted_data, original_frames, Processed_frames, Processing_times, input_size, CLASSES, score_threshold, iou_threshold, rectangle_colors, realtime))
-    p3 = Process(target=Show_Image_mp, args=(Processed_frames, show, Final_frames))
-    p1.start()
-    p2.start()
-    p3.start()
-        
-    while True:
-        ret, img = vid.read()
-        if not ret:
-            break
+    iou = inter_area / (b1_area + b2_area - inter_area + 1e-16)
 
-        original_image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
-        original_frames.put(original_image)
+    return iou
 
-        image_data = image_preprocess(np.copy(original_image), [input_size, input_size])
-        image_data = image_data[np.newaxis, ...].astype(np.float32)
-        Frames_data.put(image_data)
-        
-    while True:
-        if original_frames.qsize() == 0 and Frames_data.qsize() == 0 and Predicted_data.qsize() == 0  and Processed_frames.qsize() == 0  and Processing_times.qsize() == 0 and Final_frames.qsize() == 0:
-            p1.terminate()
-            p2.terminate()
-            p3.terminate()
-            break
-        elif Final_frames.qsize()>0:
-            image = Final_frames.get()
-            if output_path != '': out.write(image)
 
-    cv2.destroyAllWindows()
+def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
+    """
+    Removes detections with lower object confidence score than 'conf_thres' and performs
+    Non-Maximum Suppression to further filter detections.
+    Returns detections with shape:
+        (x1, y1, x2, y2, object_conf, class_score, class_pred)
+    """
+    # From (center x, center y, width, height) to (x1, y1, x2, y2)
+    prediction[..., :4] = xywh2xyxy(prediction[..., :4])
+    output = [None for _ in range(len(prediction))]
+    keep_boxes = []
 
-def detect_video(Yolo, video_path, output_path, input_size=416, show=False, CLASSES=YOLO_COCO_CLASSES, score_threshold=0.3, iou_threshold=0.45, rectangle_colors=''):
-    times, times_2 = [], []
-    vid = cv2.VideoCapture(video_path)
+    for image_i, image_pred in enumerate(prediction):
+        # Filter out confidence scores below threshold
+        image_pred = image_pred[image_pred[:, 4] >= conf_thres]
+        # If none are remaining => process next image
+        if not image_pred.size(0):
+            continue
+        # Object confidence times class confidence
+        score = image_pred[:, 4] * image_pred[:, 5:].max(1)[0]
+        # Sort by it
+        image_pred = image_pred[(-score).argsort()]
+        class_confs, class_preds = image_pred[:, 5:].max(1, keepdim=True)
+        detections = torch.cat((image_pred[:, :5], class_confs.float(), class_preds.float()), 1)
+        # Perform non-maximum suppression
+        while detections.size(0):
+            large_overlap = bbox_iou(detections[0, :4].unsqueeze(0), detections[:, :4]) > nms_thres
+            label_match = detections[0, -1] == detections[:, -1]
+            # Indices of boxes with lower confidence scores, large IOUs and matching labels
+            invalid = large_overlap & label_match
+            weights = detections[invalid, 4:5]
+            # Merge overlapping bboxes by order of confidence
+            detections[0, :4] = (weights * detections[invalid, :4]).sum(0) / weights.sum()
+            keep_boxes += [detections[0].numpy()]
+            detections = detections[~invalid]
 
-    # by default VideoCapture returns float instead of int
-    width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = int(vid.get(cv2.CAP_PROP_FPS))
-    codec = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter(output_path, codec, fps, (width, height)) # output_path must be .mp4
+    return keep_boxes
 
-    while True:
-        _, img = vid.read()
 
-        try:
-            original_image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
-        except:
-            break
+def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres):
 
-        image_data = image_preprocess(np.copy(original_image), [input_size, input_size])
-        image_data = image_data[np.newaxis, ...].astype(np.float32)
+    ByteTensor = torch.cuda.ByteTensor if pred_boxes.is_cuda else torch.ByteTensor
+    FloatTensor = torch.cuda.FloatTensor if pred_boxes.is_cuda else torch.FloatTensor
 
-        t1 = time.time()
-        if YOLO_FRAMEWORK == "tf":
-            pred_bbox = Yolo.predict(image_data)
-        elif YOLO_FRAMEWORK == "trt":
-            batched_input = tf.constant(image_data)
-            result = Yolo(batched_input)
-            pred_bbox = []
-            for key, value in result.items():
-                value = value.numpy()
-                pred_bbox.append(value)
-        
-        t2 = time.time()
-        
-        pred_bbox = [tf.reshape(x, (-1, tf.shape(x)[-1])) for x in pred_bbox]
-        pred_bbox = tf.concat(pred_bbox, axis=0)
+    nB = pred_boxes.size(0)
+    nA = pred_boxes.size(1)
+    nC = pred_cls.size(-1)
+    nG = pred_boxes.size(2)
 
-        bboxes = postprocess_boxes(pred_bbox, original_image, input_size, score_threshold)
-        bboxes = nms(bboxes, iou_threshold, method='nms')
-        
-        image = draw_bbox(original_image, bboxes, CLASSES=CLASSES, rectangle_colors=rectangle_colors)
+    # Output tensors
+    obj_mask = ByteTensor(nB, nA, nG, nG).fill_(0)
+    noobj_mask = ByteTensor(nB, nA, nG, nG).fill_(1)
+    class_mask = FloatTensor(nB, nA, nG, nG).fill_(0)
+    iou_scores = FloatTensor(nB, nA, nG, nG).fill_(0)
+    tx = FloatTensor(nB, nA, nG, nG).fill_(0)
+    ty = FloatTensor(nB, nA, nG, nG).fill_(0)
+    tw = FloatTensor(nB, nA, nG, nG).fill_(0)
+    th = FloatTensor(nB, nA, nG, nG).fill_(0)
+    tcls = FloatTensor(nB, nA, nG, nG, nC).fill_(0)
 
-        t3 = time.time()
-        times.append(t2-t1)
-        times_2.append(t3-t1)
-        
-        times = times[-20:]
-        times_2 = times_2[-20:]
+    # Convert to position relative to box
+    target_boxes = target[:, 2:6] * nG
+    gxy = target_boxes[:, :2]
+    gwh = target_boxes[:, 2:]
+    # Get anchors with best iou
+    ious = torch.stack([bbox_wh_iou(anchor, gwh) for anchor in anchors])
+    best_ious, best_n = ious.max(0)
+    # Separate target values
+    b, target_labels = target[:, :2].long().t()
+    gx, gy = gxy.t()
+    gw, gh = gwh.t()
+    gi, gj = gxy.long().t()
+    # Set masks
+    obj_mask[b, best_n, gj, gi] = 1
+    noobj_mask[b, best_n, gj, gi] = 0
 
-        ms = sum(times)/len(times)*1000
-        fps = 1000 / ms
-        fps2 = 1000 / (sum(times_2)/len(times_2)*1000)
-        
-        image = cv2.putText(image, "Time: {:.1f}FPS".format(fps), (0, 30), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 0, 255), 2)
-        # CreateXMLfile("XML_Detections", str(int(time.time())), original_image, bboxes, read_class_names(CLASSES))
-        
-        print("Time: {:.2f}ms, Detection FPS: {:.1f}, total FPS: {:.1f}".format(ms, fps, fps2))
-        if output_path != '': out.write(image)
-        if show:
-            cv2.imshow('output', image)
-            if cv2.waitKey(25) & 0xFF == ord("q"):
-                cv2.destroyAllWindows()
-                break
+    # Set noobj mask to zero where iou exceeds ignore threshold
+    for i, anchor_ious in enumerate(ious.t()):
+        noobj_mask[b[i], anchor_ious > ignore_thres, gj[i], gi[i]] = 0
 
-    cv2.destroyAllWindows()
+    # Coordinates
+    tx[b, best_n, gj, gi] = gx - gx.floor()
+    ty[b, best_n, gj, gi] = gy - gy.floor()
+    # Width and height
+    tw[b, best_n, gj, gi] = torch.log(gw / anchors[best_n][:, 0] + 1e-16)
+    th[b, best_n, gj, gi] = torch.log(gh / anchors[best_n][:, 1] + 1e-16)
+    # One-hot encoding of label
+    tcls[b, best_n, gj, gi, target_labels] = 1
+    # Compute label correctness and iou at best anchor
+    class_mask[b, best_n, gj, gi] = (pred_cls[b, best_n, gj, gi].argmax(-1) == target_labels).float()
+    iou_scores[b, best_n, gj, gi] = bbox_iou(pred_boxes[b, best_n, gj, gi], target_boxes, x1y1x2y2=False)
 
-# detect from webcam
-def detect_realtime(Yolo, output_path, input_size=416, show=False, CLASSES=YOLO_COCO_CLASSES, score_threshold=0.3, iou_threshold=0.45, rectangle_colors=''):
-    times = []
-    vid = cv2.VideoCapture(0)
-
-    # by default VideoCapture returns float instead of int
-    width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = int(vid.get(cv2.CAP_PROP_FPS))
-    codec = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter(output_path, codec, fps, (width, height)) # output_path must be .mp4
-
-    while True:
-        _, frame = vid.read()
-
-        try:
-            original_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            original_frame = cv2.cvtColor(original_frame, cv2.COLOR_BGR2RGB)
-        except:
-            break
-        image_data = image_preprocess(np.copy(original_frame), [input_size, input_size])
-        image_data = image_data[np.newaxis, ...].astype(np.float32)
-
-        t1 = time.time()
-        if YOLO_FRAMEWORK == "tf":
-            pred_bbox = Yolo.predict(image_data)
-        elif YOLO_FRAMEWORK == "trt":
-            batched_input = tf.constant(image_data)
-            result = Yolo(batched_input)
-            pred_bbox = []
-            for key, value in result.items():
-                value = value.numpy()
-                pred_bbox.append(value)
-        
-        t2 = time.time()
-        
-        pred_bbox = [tf.reshape(x, (-1, tf.shape(x)[-1])) for x in pred_bbox]
-        pred_bbox = tf.concat(pred_bbox, axis=0)
-
-        bboxes = postprocess_boxes(pred_bbox, original_frame, input_size, score_threshold)
-        bboxes = nms(bboxes, iou_threshold, method='nms')
-        
-        times.append(t2-t1)
-        times = times[-20:]
-        
-        ms = sum(times)/len(times)*1000
-        fps = 1000 / ms
-        
-        print("Time: {:.2f}ms, {:.1f} FPS".format(ms, fps))
-
-        frame = draw_bbox(original_frame, bboxes, CLASSES=CLASSES, rectangle_colors=rectangle_colors)
-        # CreateXMLfile("XML_Detections", str(int(time.time())), original_frame, bboxes, read_class_names(CLASSES))
-        image = cv2.putText(frame, "Time: {:.1f}FPS".format(fps), (0, 30),
-                          cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 0, 255), 2)
-
-        if output_path != '': out.write(frame)
-        if show:
-            cv2.imshow('output', frame)
-            if cv2.waitKey(25) & 0xFF == ord("q"):
-                cv2.destroyAllWindows()
-                break
-
-    cv2.destroyAllWindows()
+    tconf = obj_mask.float()
+    return iou_scores, class_mask, obj_mask, noobj_mask, tx, ty, tw, th, tcls, tconf

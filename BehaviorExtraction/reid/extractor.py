@@ -3,9 +3,9 @@ import torch.nn as nn
 import torch
 import numpy as np
 import scipy.io
-from reid.model import ft_net
 from torch.autograd import Variable
 
+from BehaviorExtraction.reid.model import ft_net
 # Options
 name = 'ft_ResNet50'
 stride = 2

@@ -1,14 +1,3 @@
-''' This script defines functions/class to process features:
-
-* def extract_multi_frame_features
-    Convert raw skeleton data into features extracted from multiple frames
-    by calling `class FeatureGenerator`.
-
-* class FeatureGenerator:
-    Compute features from a video sequence of raw skeleton data.
-
-'''
-
 
 import numpy as np
 import math
@@ -21,7 +10,7 @@ if True:  # Include project path
     CURR_PATH = os.path.dirname(os.path.abspath(__file__))+"/"
     sys.path.append(ROOT)
 
-    from action.an_example_skeleton_of_standing import get_a_normalized_standing_skeleton
+    from BehaviorExtraction.action.stand_skeleton import get_a_normalized_standing_skeleton
 
 # -- Settings
 NOISE_INTENSITY = 0.05
@@ -279,9 +268,7 @@ class ProcFtr(object):
 
 
 class FeatureGenerator(object):
-    def __init__(self,
-                 window_size,
-                 is_adding_noise=False):
+    def __init__(self,window_size,is_adding_noise=False):
         '''
         Arguments:
             window_size {int}: Number of adjacent frames for extracting features. 

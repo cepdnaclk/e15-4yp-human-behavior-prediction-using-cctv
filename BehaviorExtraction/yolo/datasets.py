@@ -7,10 +7,10 @@ from PIL import Image
 import torch
 import torch.nn.functional as F
 
-from PersonIdentification.yolo.augmentations import horisontal_flip
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 
+from BehaviorExtraction.yolo.augmentations import horisontal_flip
 
 def pad_to_square(img, pad_value):
     c, h, w = img.shape

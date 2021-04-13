@@ -70,9 +70,9 @@ def get_training_imgs_info(
                     # An example: [8, 49, 2687, 'wave', 'wave_03-02-12-35-10-194/00439.jpg']
 
         print("")
-        print("Number of action_classifier classes = {}".format(len(actions)))
+        print("Number of action classes = {}".format(len(actions)))
         print("Number of training images = {}".format(cnt_image))
-        print("Number of training images of each action_classifier:")
+        print("Number of training images of each action:")
         for action in actions:
             print("  {:>8}| {:>4}|".format(
                 action, action_images_cnt[action]))
@@ -82,7 +82,7 @@ def get_training_imgs_info(
 
 class ReadValidImagesAndActionTypesByTxt(object):
     ''' This is for reading training images configured by a txt file.
-        Each training image should contain a person who is performing certain type of action_classifier.
+        Each training image should contain a person who is performing certain type of action.
     '''
 
     def __init__(self, img_folder, valid_imgs_txt,
@@ -91,7 +91,7 @@ class ReadValidImagesAndActionTypesByTxt(object):
         Arguments:
             img_folder {str}: A folder that contains many sub folders.
                 Each subfolder has many images named as xxxxx.jpg.
-            valid_imgs_txt {str}: A txt file which specifies the action_classifier labels.
+            valid_imgs_txt {str}: A txt file which specifies the action labels.
                 Example:
                     jump_03-12-09-18-26-176
                     58 680

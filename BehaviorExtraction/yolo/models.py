@@ -5,8 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-from PersonIdentification.yolo.parse_config import *
-from PersonIdentification.yolo.utils import build_targets, to_cpu, non_max_suppression
+from BehaviorExtraction.yolo.parse_config import *
+from BehaviorExtraction.yolo.utils import build_targets, to_cpu, non_max_suppression
 
 def create_modules(module_defs):
     """
