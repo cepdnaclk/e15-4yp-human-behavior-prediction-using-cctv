@@ -1,4 +1,3 @@
-# importing libraries
 from facenet_pytorch import MTCNN, InceptionResnetV1
 import torch
 import time
@@ -6,17 +5,16 @@ import cv2
 from torchvision import datasets
 from torch.utils.data import DataLoader
 from PIL import Image
-import matplotlib.pyplot as plt
-import numpy as np
-##################################################################################################
+########################################################################################################################
 SRC_VIDEO_PATH = 0 #"./database/HumanVideo.mp4"
 
-##################################################################################################
+########################################################################################################################
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print('Running on device: {}'.format(device))
 
 mtcnn = MTCNN(image_size=160, margin=0, min_face_size=20,  device=device)  # initializing mtcnn for face detection
 resnet = InceptionResnetV1(pretrained='vggface2').eval()  # initializing resnet for face img to embeding conversion
+
 
 def create():
     dataset = datasets.ImageFolder('database/faces') # photos folder path
@@ -29,7 +27,6 @@ def create():
 
     loader = DataLoader(dataset, collate_fn=collate_fn)
 
-    face_list = [] # list of cropped faces from photos folder
     name_list = [] # list of names corrospoing to cropped photos
     embedding_list = [] # list of embeding matrix after conversion from cropped faces to embedding matrix using resnet
 
@@ -66,7 +63,39 @@ def face_match(img_path, data_path):  # img_path= location of photo, data_path= 
     idx_min = dist_list.index(min(dist_list))
     return (name_list[idx_min], min(dist_list))
 
+# This is temporary function
+def playVideo():
+    saved_data = torch.load(data_path)  # Loading data.pt file
+    embedding_list = saved_data[0]  # Getting embedding data
+    name_list = saved_data[1]  # Getting list of face names
+    dist_list = []  # List of matched distances,
+
+    video = cv2.VideoCapture('FaceAnimation.mp4')
+    while video.isOpened():
+        check, currFrame = video.read()
+        frame = Image.fromarray(currFrame)
+        faces, prob = mtcnn(frame, return_prob=True)
+        for face in faces:
+            emb = resnet(face.unsqueeze(0)).detach()
+            for idx, emb_db in enumerate(embedding_list):
+                dist = torch.dist(emb, emb_db).item()
+                dist_list.append(dist)
+
+            # Minimum distance is used to identify the person
+            idx_min = dist_list.index(min(dist_list))
+            person = name_list[idx_min]
+            print(name_list[idx_min], min(dist_list))
+
+
+        cv2.imshow('Camera', currFrame)
+        key = cv2.waitKey(1)
+        if key == 'q':
+            break
+
+    cv2.destroyAllWindows()
+
 if __name__ == "__main__":
     create()
+    #playVideo()
     #result = face_match('ri.png', 'data.pt')
     #print('Face matched with:', result[0], 'With distance: ', result[1])

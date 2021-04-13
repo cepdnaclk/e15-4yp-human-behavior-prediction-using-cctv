@@ -8,8 +8,6 @@ import numpy as np
 from yolo.parse_config import *
 from yolo.utils import build_targets, to_cpu, non_max_suppression
 
-
-
 def create_modules(module_defs):
     """
     Constructs module list of layer blocks from module configuration in module_defs
