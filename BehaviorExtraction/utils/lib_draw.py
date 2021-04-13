@@ -57,17 +57,11 @@ def draw_human_skeleton(frame, humans):
             centers[i] = (center_x, center_y)
             cv2.circle(frame, (center_x, center_y), 3, CocoColors[i], thickness=3, lineType=8, shift=0)
 
-            #if i not in [3, 4, 6, 7]:
-                #xs.append(center_x)
-                #ys.append(center_y)
-
-            #bboxes.append([min(xs), min(ys), max(xs), max(ys)])
         # draw line
         for pair_order, pair in enumerate(CocoPairsRender):
             if pair[0] not in human.body_parts.keys() or pair[1] not in human.body_parts.keys():
                 continue
-
-            cv2.line(frame, centers[pair[0]], centers[pair[1]], CocoColors[pair_order], 3)
+            cv2.line(frame, centers[pair[0]], centers[pair[1]], CocoColors[pair_order], 2)
 
 def draw_human_path(floor_plan, tracked_bboxes):
     locations = {}

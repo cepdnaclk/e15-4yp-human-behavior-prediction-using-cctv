@@ -17,36 +17,28 @@ TFPOSE_MODEL_PATH    = 'model_data/mobilenet_thin/graph_opt.pb'
 TFPOSE_IMG_SIZE = [656, 368] # 656x368 432x368, 336x288. Bigger is more accurate.
 
 # draw the body keypoint and lims
-def draw_pytorch_skel(canvas, candidate, subset):
-    stickwidth = 4
-    limbSeq = [[2, 3], [2, 6], [3, 4], [4, 5], [6, 7], [7, 8], [2, 9], [9, 10], \
-               [10, 11], [2, 12], [12, 13], [13, 14], [2, 1], [1, 15], [15, 17], \
-               [1, 16], [16, 18], [3, 17], [6, 18]]
+def draw_pytorch_skel(canvas, skeletons):
+    joints = [[1, 2], [1, 5], [2, 3], [3, 4], [5, 6], [6, 7], [1, 8], [8, 9], \
+               [9, 10], [1, 11], [11, 12], [12, 13], [0, 1], [0, 14], [14, 16], \
+               [0, 15], [15, 17]]
 
     colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0], [170, 255, 0], [85, 255, 0], [0, 255, 0], \
               [0, 255, 85], [0, 255, 170], [0, 255, 255], [0, 170, 255], [0, 85, 255], [0, 0, 255], [85, 0, 255], \
               [170, 0, 255], [255, 0, 255], [255, 0, 170], [255, 0, 85]]
     px = []
     py = []
-    for i in range(18):
-        for n in range(len(subset)):
-            index = int(subset[n][i])
-            if index == -1:
-                continue
-            x, y = candidate[index][0:2]
+    for skeleton in skeletons:
+        for i in range(18):
+            x, y = skeleton[i][0:2]
             px.append(x)
             py.append(y)
             cv2.circle(canvas, (int(x), int(y)), 4, [0,255,0], thickness=-1)
-            cv2.putText(image, str(i), (int(x)+10, int(y)+10), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.8, [0, 0, 0], 1, lineType=cv2.LINE_AA)
+            cv2.putText(image, str(i), (int(x)+10, int(y)+10), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.9, [0, 0, 0], 1, lineType=cv2.LINE_AA)
 
-    for i in range(17):
-        for n in range(len(subset)):
-            index = subset[n][np.array(limbSeq[i]) - 1]
-            if -1 in index:
-                continue
-            Y = candidate[index.astype(int), 0]
-            X = candidate[index.astype(int), 1]
-            #cv2.line(canvas, (int(Y[0]), int(X[0])), (int(Y[1]) , int(X[1])), [0,255,0], 2)
+        for idx1, idx2 in joints:
+            x1, y1 = skeleton[idx1][0:2]
+            x2, y2 = skeleton[idx2][0:2]
+            #cv2.line(canvas, (int(x1), int(y1)), (int(x2) , int(y2)), [0,255,0], 2)
 
     return px,py
 
@@ -89,7 +81,7 @@ if __name__ == "__main__":
     print(f'Running on device: {device}')
     torch.backends.cudnn.benchmark = True
 
-    image = cv2.imread('assets/test.png')
+    image = cv2.imread('assets/two.png')
     ############################################### ACTION RECOGNITION #################################################
     skeleton_detector = SkeletonDetector(TFPOSE_MODEL_PATH, TFPOSE_IMG_SIZE)
     humans = skeleton_detector.detect(image)
@@ -100,11 +92,13 @@ if __name__ == "__main__":
 
     ####################################################################################################################
     body_estimator = Body(OPENPOSE_MODEL_PATH, device)
-    candidate, subset = body_estimator(image)
-    pxs, pys = draw_pytorch_skel(image, candidate, subset)
+    skeletons = body_estimator(image)
+    pxs, pys = draw_pytorch_skel(image, skeletons)
 
+    c = 0
     for tx, ty, px, py in zip(txs, tys, pxs, pys):
-        print(tx,px, ty,py)
+        print(c, tx,px, ty,py)
+        c+=1
 
     cv2.imshow('Temp', image)
     cv2.waitKey(0)

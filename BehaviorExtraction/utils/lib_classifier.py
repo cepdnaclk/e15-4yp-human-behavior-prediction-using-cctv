@@ -22,7 +22,6 @@ if True:
 
     from utils.lib_feature_proc import FeatureGenerator
 
-
 # -- Settings
 NUM_FEATURES_FROM_PCA = 50
 
@@ -43,8 +42,8 @@ class ClassifierOfflineTrain(object):
         # self.clf = self._choose_model("RBF SVM")
         # self.clf = self._choose_model("Gaussian Process")
         # self.clf = self._choose_model("Decision Tree")
-        # self.clf = self._choose_model("Random Forest")
-        self.clf = self._choose_model("Neural Net")
+        self.clf = self._choose_model("Random Forest")
+        #self.clf = self._choose_model("Neural Net")
 
     def predict(self, X):
         ''' Predict the class index of the feature X '''
@@ -189,6 +188,4 @@ class ClassifierOnlineTest(object):
                 s = "{:<5}: {:.2f}".format(label, self.scores[i])
                 COLOR_INTENSITY *= (0.0 + 1.0 * self.scores[i])**0.5
 
-            cv2.putText(img_disp, text=s, org=(TXT_X, TXT_Y),
-                        fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=FONT_SIZE,
-                        color=(0, 0, int(COLOR_INTENSITY)), thickness=2)
+            cv2.putText(img_disp, text=s, org=(TXT_X, TXT_Y),fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=FONT_SIZE,color=(0, 0, int(COLOR_INTENSITY)), thickness=2)

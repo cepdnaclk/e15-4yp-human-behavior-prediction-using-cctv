@@ -41,7 +41,7 @@ class MultiPersonClassifier(object):
         self._create_classifier = lambda human_id: ClassifierOnlineTest(model_path, classes, ACTION_BUFFER_SIZE, human_id)
 
     def classify(self, dict_id2skeleton):
-        ''' Classify the tf_action type of each skeleton in dict_id2skeleton '''
+        ''' Classify the action_classifier type of each skeleton in dict_id2skeleton '''
 
         # Clear people not in view
         old_ids = set(self.dict_id2clf)
@@ -50,7 +50,7 @@ class MultiPersonClassifier(object):
         for human in humans_not_in_view:
             del self.dict_id2clf[human]
 
-        # Predict each person's tf_action
+        # Predict each person's action_classifier
         id2label = {}
         for id, skeleton in dict_id2skeleton.items():
 
