@@ -202,17 +202,7 @@ class Body(object):
         for i in range(len(subset)):
             if subset[i][-1] < 4 or subset[i][-2] / subset[i][-1] < 0.4:
                 deleteIdx.append(i)
-
+        subset = np.delete(subset, deleteIdx, axis=0)
         # subset: n*20 array, 0-17 is the index in candidate, 18 is the total score, 19 is the total parts
         # candidate: x, y, score, id
-        ################################################# MY Part ######################################################
-        subset = np.delete(subset, deleteIdx, axis=0).astype(int).tolist()  # .astype(int).tolist() only
-        skeletons = []
-        for subpoint in subset:
-            subpoint = [num for num in subpoint[0:18] if num is not -1]
-            skelDict = {}
-            for point in subpoint:
-                skelDict[point] = candidate[point][0:2].tolist()
-
-            skeletons.append(skelDict)
-        return skeletons
+        return candidate, subset

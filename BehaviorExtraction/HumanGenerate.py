@@ -6,15 +6,16 @@ import torch.backends.cudnn as cudnn
 from torchvision import datasets, models, transforms
 import os
 import scipy.io
-from model import ft_net
+from BehaviorExtraction.reid.model import ft_net
 import time
+import datetime
 
 ##############################################################################################
 # Options
 name = 'ft_ResNet50'
-data_path = '../../ImageDatabase/Human/2021-04-13'
-model_path = '../../ModelFiles/reid/reid_model.pth'
-output_path = '../../ImageDatabase/Human/2021-04-13/today.mat'
+data_path = f'../ImageDatabase/Human/2021-04-15_Demo'#{datetime.date.today()}'
+model_path = '../ModelFiles/reid/reid_model.pth'
+output_path = f'../ImageDatabase/Human/2021-04-15_Demo/today.mat' #{datetime.date.today()}/today.mat'
 stride = 2
 batchsize = 32
 nclasses = 751

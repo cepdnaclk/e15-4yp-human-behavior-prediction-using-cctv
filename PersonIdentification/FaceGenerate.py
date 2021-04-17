@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from PIL import Image
 ########################################################################################################################
 SRC_VIDEO_PATH = 0 #"./database/HumanVideo.mp4"
-
+FACE_DATABASE_PATH = '../ImageDatabase/Faces'
 ########################################################################################################################
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print('Running on device: {}'.format(device))
@@ -17,7 +17,7 @@ resnet = InceptionResnetV1(pretrained='vggface2').eval()  # initializing resnet 
 
 
 def create():
-    dataset = datasets.ImageFolder('database/2021-04-12') # photos folder path
+    dataset = datasets.ImageFolder(FACE_DATABASE_PATH) # photos folder path
     idx_to_class = {i:c for c,i in dataset.class_to_idx.items()} # accessing names of peoples from folder names
 
     print(idx_to_class)
@@ -38,7 +38,7 @@ def create():
             name_list.append(idx_to_class[idx]) # names are stored in a list
 
     data = [embedding_list, name_list]
-    torch.save(data, 'database/faces.pt') # saving faces.pt file
+    torch.save(data, FACE_DATABASE_PATH+"/faces.pt") # saving faces.pt file
 
 def face_match(img_path, data_path):  # img_path= location of photo, data_path= location of faces.pt
     # getting embedding matrix of the given img
