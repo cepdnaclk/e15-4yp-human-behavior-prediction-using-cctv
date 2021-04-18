@@ -1,3 +1,6 @@
-## Please refer the instructions in below URL:
+# Adaptive people movement and action prediction using CCTV to control appliances
 
-https://projects.ce.pdn.ac.lk/docs/how-to-add-a-project
+#### Table of content
+
+1. [Requirments](#requirments)
+2. [Howto](#related-works)
