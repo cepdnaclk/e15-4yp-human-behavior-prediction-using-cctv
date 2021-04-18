@@ -1,10 +1,10 @@
 from facenet_pytorch import MTCNN, InceptionResnetV1
 import torch
-import time
 import cv2
 from torchvision import datasets
 from torch.utils.data import DataLoader
 from PIL import Image
+
 ########################################################################################################################
 SRC_VIDEO_PATH = 0 #"./database/HumanVideo.mp4"
 FACE_DATABASE_PATH = '../ImageDatabase/Faces'
@@ -14,7 +14,6 @@ print('Running on device: {}'.format(device))
 
 mtcnn = MTCNN(image_size=160, margin=0, min_face_size=20,  device=device)  # initializing mtcnn for face detection
 resnet = InceptionResnetV1(pretrained='vggface2').eval()  # initializing resnet for face img to embeding conversion
-
 
 def create():
     dataset = datasets.ImageFolder(FACE_DATABASE_PATH) # photos folder path
@@ -96,6 +95,3 @@ def playVideo():
 
 if __name__ == "__main__":
     create()
-    #playVideo()
-    #result = face_match('ri.png', 'faces.pt')
-    #print('Face matched with:', result[0], 'With distance: ', result[1])

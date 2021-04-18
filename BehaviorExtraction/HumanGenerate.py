@@ -13,9 +13,9 @@ import datetime
 ##############################################################################################
 # Options
 name = 'ft_ResNet50'
-data_path = f'../ImageDatabase/Human/2021-04-15_Demo'#{datetime.date.today()}'
+data_path = f'../ImageDatabase/Human/{datetime.date.today()}'
 model_path = '../ModelFiles/reid/reid_model.pth'
-output_path = f'../ImageDatabase/Human/2021-04-15_Demo/today.mat' #{datetime.date.today()}/today.mat'
+output_path = f'../ImageDatabase/Human/{datetime.date.today()}/today.mat'
 stride = 2
 batchsize = 32
 nclasses = 751
@@ -26,12 +26,7 @@ def extract_feature(model, dataloader):
     features = torch.FloatTensor()
     for data in dataloader:
         img, label = data
-        #print(f'lable:{label}, type:{type(label)}')
-        #print(type(img))
-        #print(img.size())
         n, c, h, w = img.size()
-        #print(f'n:{n}, c:{c}, h:{h}, w:{w}')
-        #print(img.numpy()[7][0])
         ff = torch.FloatTensor(n,512).zero_().cuda()
         for i in range(2):
             if(i==1): #Flip the image
@@ -72,11 +67,7 @@ if __name__ == '__main__':
     ])
 
     image_dataset = datasets.ImageFolder(data_path, data_transform)
-    #print(image_dataset)
-    #print(type(image_dataset))
     image_loader = torch.utils.data.DataLoader(image_dataset, batch_size=batchsize, shuffle=False, num_workers=0)
-    #print(image_loader)
-    #print(type(image_loader))
 
     model = ft_net(nclasses, stride = stride)
     model.load_state_dict(torch.load(model_path))
@@ -100,7 +91,6 @@ if __name__ == '__main__':
     print(f'No Of Photos: {len(person_ids)}')
     print(f'Ids: {person_ids}')
     print(f'Feature Shape: {person_feature.numpy().shape}')
-    #print(person_feature.numpy()[7])
 
     # Save to Matlab for check
     result = {'person_ids': person_ids, 'person_feature':person_feature.numpy()}
