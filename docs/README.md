@@ -3,24 +3,23 @@ layout: home
 permalink: index.html
 
 # Please update this with your repository name and title
-repository-name: eYY-4yp-project-template
+repository-name: human-behavior-prediction-using-cctv
 title:
 ---
 
 [comment]: # "This is the standard layout for the project, but you can clean this and use your own template"
 
-# Accelerating-Adaptive-Banded-Event-Alignment-Algorithm-with-OpenCL-on-FPGA
+# Adaptive people movement and action prediction using CCTV to control appliances
 
 #### Team
 
-- E/15/123, Wishma Herath, [email](mailto:e15123@eng.pdn.ac.lk)
-- E/15/280, Pubudu Premathilaka, [email](mailto:pubudu.premathilaka@eng.pdn.ac.lk)
-- E/15/316, Suenth Samarasinghe, [email](mailto:e15316@eng.pdn.ac.lk)
+- E/15/010, Ruchika Alwis, [email](mailto:e15010@eng.pdn.ac.lk)
+- E/15/265, Risith Perera, [email](mailto:risithperera@eng.pdn.ac.lk)
+- E/15/347, Isuth Sudasinghe, [email](mailto:isuru.sudasinghe@eng.pdn.ac.lk)
 
 #### Supervisors
 
-- Prof Roshan Ragel, [email](mailto:roshanr@eng.pdn.ac.lk)
-- Dr Hasindu Gamaarachchi , [email](mailto:hasindu2008@gmail.com)
+- Eng. (Dr.) Kamalanath Samarakoon, [email](mailto:kamalanath@eng.pdn.ac.lk)
 
 #### Table of content
 
