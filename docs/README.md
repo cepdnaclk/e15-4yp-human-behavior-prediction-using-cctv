@@ -15,7 +15,7 @@ title:
 
 - E/15/010, Ruchika Alwis, [email](mailto:e15010@eng.pdn.ac.lk)
 - E/15/265, Risith Perera, [email](mailto:risithperera@eng.pdn.ac.lk)
-- E/15/347, Isuth Sudasinghe, [email](mailto:isuru.sudasinghe@eng.pdn.ac.lk)
+- E/15/347, Isuru Sudasinghe, [email](mailto:isuru.sudasinghe@eng.pdn.ac.lk)
 
 #### Supervisors
 
