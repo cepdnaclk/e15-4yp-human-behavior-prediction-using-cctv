@@ -1,0 +1,62 @@
+{
+   "title":"Accelerating Adaptive Banded Event Alignment Algorithm with OpenCL on FPGA",
+   "team":[
+      {
+         "name":"Wishma Herath",
+         "email":"e15123@eng.pdn.ac.lk",
+         "eNumber":"E/15/123",
+         "github_profile":"https://github.com/WishmaL",
+         "linkedin_profile":"https://www.linkedin.com/in/wishma-herath-0a3b4a132/",
+         "researchgate_profile":"#"
+      },
+      {
+         "name":"Pubudu Premathilaka",
+         "email":"pubudu.premathilaka@eng.pdn.ac.lk",
+         "eNumber":"E/15/280",
+         "github_profile":"https://github.com/pubuduudara/",
+         "linkedin_profile":"https://www.linkedin.com/in/pubuduudara/",
+         "researchgate_profile":"#"
+      },
+      {
+         "name":"Suneth Samarasinghe",
+         "email":"e15316@eng.pdn.ac.lk",
+         "eNumber":"E/15/316",
+         "github_profile":"https://github.com/imsuneth/",
+         "linkedin_profile":"https://www.linkedin.com/in/imsuneth/",
+         "researchgate_profile":"#"
+      }
+   ],
+   "supervisors":[
+      {
+         "name":"Dr. Hasindu Gamaarachchi",
+         "email":"hasindu2008@gmail.com ",
+         "linkedin_profile":"https://www.linkedin.com/in/hasindugamaarachchi/",
+         "researchgate_profile":"https://www.researchgate.net/profile/Hasindu-Gamaarachchi-2"
+      },
+      {
+         "name":"Prof. Roshan Ragel",
+         "email":"roshanr@eng.pdn.ac.lk ",
+         "linkedin_profile":"https://www.linkedin.com/in/roshanragel/",
+         "researchgate_profile":"https://www.researchgate.net/profile/Roshan-Ragel"
+      }
+   ],
+   "publications":[
+      {
+         "title":"Paper Title",
+         "journal":"Journal or Conference Name",
+         "description":"Sample Description",
+         "url":"#"
+      }
+   ],
+   "media":[
+      {
+         "type":"youtube",
+         "url":"#"
+      }
+   ],
+   "tags":[
+      "Final Year Projects",
+      "HPC",
+      "OpenCL"
+   ]
+}
