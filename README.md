@@ -13,15 +13,23 @@
 ## Requirments
 
 ## Installation
-For normal training and evaluation we recommend installing the package from source using a poetry virtual enviroment.
+First clone the repository
 
 ```bash
 git clone https://github.com/RisithPerera/e15-4yp-human-behavior-prediction-using-cctv.git
 cd e15-4yp-human-behavior-prediction-using-cctv/code
-python CCTVObserver.py
-python FaceObserver.py
+```
+#### Download pretrained weights
+
+```bash
+./weights/download_weights.sh
 ```
 
 ## How to Run
+
+```bash
+python CCTVObserver.py
+python FaceObserver.py
+```
 
 ## Results
