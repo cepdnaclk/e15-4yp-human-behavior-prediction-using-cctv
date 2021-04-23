@@ -154,7 +154,7 @@ These sequences are then used to train the HMM (Hidden Markov Model). The
 HMM used for this model is imported from the ‘homeland’ python package
 
 #### Overalll Design Diagram
-![](./assests/images/ Design_Diagram.png)
+![](.Design_Diagram.png)
 
 ## Results and analysis
 
@@ -174,7 +174,7 @@ iterations. However, a detailed explanation is excluded as the change in their p
 with respect to varying the parameters was very insignificant.
 
 #### Location Prediction Accuracy
-![](./assests/images/ modelAccuracy.JPG)
+![](.modelAccuracy.JPG)
 
 After the next location is predicted, then a Cat Boost classifier is used to determine
 which electric appliances should be turned on? The model was trained to predict the
@@ -183,7 +183,7 @@ classification is as follows
 Table
 
 #### Appliance Prediction Accuracy
-![](./assests/images/ applianceAccuracy.JPG)
+![](.applianceAccuracy.JPG)
 
 
 ## Conclusion
