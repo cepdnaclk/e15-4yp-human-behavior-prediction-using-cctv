@@ -83,8 +83,8 @@ procedure is standard and requires no bells and whistles. It shows that the conv
 C. Action Recognition
 To identify actions performed by each individual person of the frame, first, the pose or the skeleton of the person has tube estimated. To do that, Porch implementation of opposes used. It produces 18 joint points of the person. Further implementation details can be found in the GitHub Repository- GitHub. Once the joints points are obtained then itis sent to an action classifier to determine the action. A window of five frames is used to extract features of body velocity, normalized joint positions, and joint velocities. Then mean filtering the prediction scores between 2 frames. Get a label of the person if the score is larger than a certain threshold. Here, a pre-trained action classifier provided by the GitHub Repository - Realtime-Action-Recognition is used to obtain the action identification.
 
-#### Overalll Design Diagram
-![](skeleton.JPG)
+#### Behavior Data Extraction Interface
+![](CCTV.png)
 
 D. Behavior prediction
 There are two Machine learning algorithms used in the prediction model. One Algorithm is used to get the next location while the other algorithm is used to determine the state of the electric bulbs. Due to the constraints in the timeframe to create a totally new database from scratch, a mock database has to be created for this. The Final data-set needs tube of the structure in Table I. The public data-set we selected to create the mock data set has the structure in Table II. This dataset consists of readings taken from motion sensors, pressure sensors that were taken in fixed time intervals. This raw data is then used to predict the movement of the owner inside the house. After processing the data-set based on multiple assumptions, a mock data-set is created that has the required data structure as in Table I.
