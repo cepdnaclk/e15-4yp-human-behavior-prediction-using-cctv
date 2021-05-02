@@ -114,7 +114,6 @@ class BehaviorExtractor():
         self.Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
         ###################################################### ReID ########################################################
-        REID_FEAT_MAT = f'ImageDatabase/Human/2021-04-15/today.mat'
         self.reIdentifier = HumanReIdentifier(REID_MODEL_PATH, REID_FEAT_MAT)
 
         self.data_transform = transforms.Compose([
