@@ -7,7 +7,7 @@ from PIL import Image
 
 ########################################################################################################################
 SRC_VIDEO_PATH = 0 #"./database/HumanVideo.mp4"
-FACE_DATABASE_PATH = '../ImageDatabase/Faces'
+FACE_DATABASE_PATH = 'ImageDatabase/Faces'
 ########################################################################################################################
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print('Running on device: {}'.format(device))
