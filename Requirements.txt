@@ -1,0 +1,9 @@
+opencv-python
+numpy
+PyQt5
+facenet-pytorch
+pathlib
+scikit-learn
+tqdm
+pretrainedmodels
+matplotlib
