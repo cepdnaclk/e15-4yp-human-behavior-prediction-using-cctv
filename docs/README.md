@@ -29,8 +29,7 @@ title:
 4. [Experiment Setup and Implementation](#experiment-setup-and-implementation)
 5. [Results and Analysis](#results-and-analysis)
 6. [Conclusion](#conclusion)
-7. [Publications](#publications)
-8. [Links](#links)
+7. [Links](#links)
 
 ---
 
@@ -179,7 +178,7 @@ with respect to varying the parameters was very insignificant.
 After the next location is predicted, then a Cat Boost classifier is used to determine
 which electric appliances should be turned on? The model was trained to predict the
 electric bulbs of the Kitchen, Bathroom, and Television. The accuracy of the Cat Boost
-classification is as follows 
+classification is as follows
 Table
 
 #### Appliance Prediction Accuracy
@@ -192,14 +191,6 @@ The main result for the lack of accuracy is due to the mock data set that was cr
 keeps increasing when the number of hidden states in the Multinomial HMM kept increasing. But the complexity of the transformation matrix increases exponentially when the hidden states are increased. After 20 hidden states, the time to fit the model for a system with 30 hidden states takes a duration
 recorded in hours, which is a huge drawback to a real-time system that needs to be trained periodically. Therefore, the model was selected when it showed the highest accuracy of53% under 19 hidden states. The reason for obtaining low accuracy even when an Stims used is because of the nature of the dataset. This resultant dataset lacks fixed time steps between adjacent data. And lots of such redundant data was removed during data preprocessing. However, it can be assumed that an LSTM would yield much better results if the data can be recorded in fixed intervals. Itis cleared that after the data pre-processing, the problem has deviated from the context of a time series analysis. The aim of this project was to practically attempt the automation of control of basic electric appliances through the data obtained by processing CCTV footage data. Even Though the primary focus was to develop a model with the capability to successfully do the predictions, it became clear that the system to extract the data from video footage plays an important role as well. Therefore, the main focus for this project during this time-frame was to develop a robust system to extract the required data from a CCTV camera network in real-time. Finally, for future works, we would like to summarize what we have discussed above. This project clearly proves the possibility to automate household electric appliances just by observing human behavior. However, in order to implement system at the domestic level, all the existing components
 have to be further fine-tuned. And in order to achieve that goal, each component has to be optimized separately. We like to state that this project can be used as the foundation for such an attempt so that the components of this system can be separated into parts, developed, and then combined together for a better, much more accurate system in the future. And all the models used here can be trained with custom datasets as well. Therefore, the fastest way to improve the performance would be to train each component with custom datasets that are specifically designed for this system.
-
-## Publications
-1. [Semester 7 report](./)
-2. [Semester 7 slides](./)
-3. [Semester 8 report](./)
-4. [Semester 8 slides](./)
-5. Author 1, Author 2 and Author 3 "Research paper title" (2021). [PDF](./).
-
 
 ## Links
 
